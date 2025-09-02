@@ -24,9 +24,9 @@ async def cmd_start(message: Message, state: FSMContext):
 
     if not user:
         await db.add_user(
-            message.from_user.id,
-            message.from_user.username,
-            message.from_user.first_name
+            telegram_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name
         )
         await message.answer(
             "Привет! Выберите язык:",

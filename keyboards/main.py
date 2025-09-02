@@ -51,6 +51,7 @@ def get_settings_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🏙️ Указать город", callback_data="settings_city")],
         [InlineKeyboardButton(text="🌍 Поиск только в городе", callback_data="settings_city_only")],
+        [InlineKeyboardButton(text="📸 Только с фото", callback_data="settings_photo_required")],
         [InlineKeyboardButton(text="👁️ Скрыть из поиска", callback_data="settings_hide")],
         [InlineKeyboardButton(text="❌ Удалить собеседника", callback_data="settings_remove_companion")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="settings_back")]
@@ -102,4 +103,20 @@ def get_topics_menu_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎭 Выбрать темы", callback_data="topics_edit")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="topics_back_to_main")]
+    ])
+
+def get_boolean_choice_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Да", callback_data="boolean_yes"),
+            InlineKeyboardButton(text="❌ Нет", callback_data="boolean_no")
+        ],
+        [InlineKeyboardButton(text="⬅️ Отмена", callback_data="boolean_cancel")]
+    ])
+
+def get_photo_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="⬅️ Отмена", callback_data="photo_cancel"),
+        ],
     ])

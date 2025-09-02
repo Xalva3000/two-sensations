@@ -44,13 +44,13 @@ async def settings_back(callback: CallbackQuery):
     )
 
 
-@router.callback_query(F.data == "menu_photo")
-async def menu_photo(callback: CallbackQuery):
-    await callback.message.answer("Отправьте ваше фото:")
-    # Здесь будет обработка фото
+# @router.callback_query(F.data == "menu_photo")
+# async def menu_photo(callback: CallbackQuery):
+#     await callback.message.answer("Отправьте ваше фото:")
+#     # Здесь будет обработка фото
 
 
-@router.callback_query(F.data == "menu_search")
-async def menu_search(callback: CallbackQuery):
-    from handlers.matching import find_match
-    await find_match(callback.message)
+# @router.callback_query(F.data == "menu_search")
+# async def menu_search(callback: CallbackQuery):
+#     from handlers.matching import find_match
+#     await find_match(callback.message)

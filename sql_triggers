@@ -1,0 +1,24 @@
+
+create or replace function create_seeker_preferences()
+returns trigger as $$
+BEGIN
+        insert into preferences (seeker_id)
+    values (NEW.telegram_id);
+        insert into photos (seeker_id)
+    values (NEW.telegram_id);
+        insert into topics (seeker_id)
+    values (NEW.telegram_id);
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+create or replace trigger after_seeker_insert
+after insert on seekers
+for each row
+execute function create_seeker_preferences();
+
+
+insert into seekers (telegram_id, username, first_name, language, gender, age, interested_age, is_active)
+select telegram_id + 1, username || '1', first_name || '1', language, gender, age, interested_age, is_active from seekers s1;

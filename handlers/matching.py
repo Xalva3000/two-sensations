@@ -18,17 +18,19 @@ TOPICS_LIST = [
 
 @router.callback_query(F.data == "menu_search")
 async def menu_search(callback: CallbackQuery):
-    await find_match(callback.message)
+    user_id = callback.from_user.id
+    await find_match(callback.message, user_id)
 
 
-async def find_match(message: Message):
-    user = await db.get_user(message.from_user.id)
+async def find_match(message: Message, user_id: int):
+    user = await db.get_user(user_id)
+
     if not user or not user.get('gender') or not user.get('age'):
         await message.answer("Сначала заполните анкету!")
         return
 
-    match = await db.get_random_user(message.from_user.id)
-
+    match = await db.get_random_user(user_id)
+    print(f"{match=}")
     if not match:
         await message.answer("Пока нет подходящих анкет. Попробуйте позже!")
         return
@@ -61,7 +63,7 @@ async def find_match(message: Message):
     # Можно использовать FSM или временное хранилище
 
     await message.answer_photo(
-        match.get('photo', 'AgACAgIAAxkBAAIB...'),  # Заглушка для фото
+        match.get('photo', match['photo']),  # Заглушка для фото
         caption=caption,
         reply_markup=get_profile_action_keyboard()
     )

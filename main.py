@@ -7,6 +7,8 @@ from database import db
 from handlers.start import router as start_router
 from handlers.menu import router as menu_router
 from handlers.topics import router as topics_router
+from handlers.settings import router as settings_router
+from handlers.photo import router as photo_router
 from handlers.matching import router as matching_router
 
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +27,8 @@ async def main():
     dp.include_router(start_router)
     dp.include_router(menu_router)
     dp.include_router(topics_router)
+    dp.include_router(settings_router)
+    dp.include_router(photo_router)
     dp.include_router(matching_router)
 
     try:

@@ -33,7 +33,7 @@ async def topics_back_to_main(callback: CallbackQuery):
 @router.callback_query(F.data == "topics_edit")
 async def topics_edit(callback: CallbackQuery, state: FSMContext):
     # Получаем текущие выбранные темы пользователя
-    seeker_id = await db.get_seeker_id(callback.from_user.id)
+    seeker_id = callback.from_user.id #  await db.get_seeker_id(callback.from_user.id)
     selected_topics = await db.get_user_topics(seeker_id)
 
     await callback.message.edit_text(
@@ -74,7 +74,7 @@ async def process_topic_selection(callback: CallbackQuery, state: FSMContext):
 async def topics_save(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     selected_topics = data.get("selected_topics", [])
-    seeker_id = await db.get_seeker_id(callback.from_user.id)
+    seeker_id = callback.from_user.id  # await db.get_seeker_id(callback.from_user.id)
 
     # Сохраняем все темы в базу
     for topic_num in range(1, 21):

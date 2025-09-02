@@ -37,7 +37,7 @@ class Database:
             # Таблица доп.информации
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS topics (
-                    seeker_id INTEGER REFERENCES seekers(id),
+                    seeker_id BIGINT REFERENCES seekers(telegram_id),
                     word_1 BOOLEAN DEFAULT FALSE NOT NULL,
                     word_2 BOOLEAN DEFAULT FALSE NOT NULL,
                     word_3 BOOLEAN DEFAULT FALSE NOT NULL,
@@ -65,10 +65,11 @@ class Database:
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS preferences (
                     id BIGSERIAL PRIMARY KEY,
-                    seeker_id INTEGER REFERENCES seekers(id),
+                    seeker_id BIGINT REFERENCES seekers(telegram_id),
                     city VARCHAR(100),
                     is_city_only BOOLEAN DEFAULT FALSE NOT NULL,
-                    is_seekable BOOLEAN DEFAULT TRUE NOT NULL
+                    is_seekable BOOLEAN DEFAULT TRUE NOT NULL,
+                    photo_required BOOLEAN DEFAULT FALSE NOT NULL
                 )
             ''')
 
@@ -76,7 +77,7 @@ class Database:
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS photos (
                     id BIGSERIAL PRIMARY KEY,
-                    seeker_id INTEGER REFERENCES seekers(id),
+                    seeker_id BIGINT REFERENCES seekers(telegram_id),
                     photo text,
                     confirmed BOOLEAN DEFAULT FALSE NOT NULL
                 )
@@ -85,8 +86,8 @@ class Database:
             # Таблица отклоненных анкет
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS rejections (
-                    seeker_id INTEGER REFERENCES seekers(id),
-                    rejected_seeker_id INTEGER REFERENCES seekers(id),
+                    seeker_id BIGINT REFERENCES seekers(telegram_id),
+                    rejected_seeker_id BIGINT REFERENCES seekers(telegram_id),
                     created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(seeker_id, rejected_seeker_id)
                 )
@@ -125,99 +126,14 @@ class Database:
                 UPDATE seekers SET interested_age = $1 WHERE telegram_id = $2
             ''', interested_age, telegram_id)
 
-    async def update_topic(self, seeker_id, word_number, value):
-        async with self.pool.acquire() as connection:
-            # Проверяем, существует ли запись
-            exists = await connection.fetchval('''
-                SELECT 1 FROM topics WHERE seeker_id = $1
-            ''', seeker_id)
-
-            if not exists:
-                # Создаем новую запись
-                await connection.execute('''
-                    INSERT INTO topics (seeker_id)
-                    VALUES ($1)
-                ''', seeker_id)
-
-            # Обновляем конкретное поле
-            await connection.execute(f'''
-                UPDATE topics SET word_{word_number} = $1 WHERE seeker_id = $2
-            ''', value, seeker_id)
-
-    async def add_photo(self, seeker_id, photo):
-        async with self.pool.acquire() as connection:
-            await connection.execute('''
-                INSERT INTO photos (seeker_id, photo, confirmed)
-                VALUES ($1, $2, TRUE)
-            ''', seeker_id, photo)
-
-    async def update_preferences(self, seeker_id, city=None, is_city_only=None, is_seekable=None):
-        async with self.pool.acquire() as connection:
-            # Проверяем, существует ли запись
-            exists = await connection.fetchval('''
-                SELECT 1 FROM preferences WHERE seeker_id = $1
-            ''', seeker_id)
-
-            if not exists:
-                # Создаем новую запись
-                await connection.execute('''
-                    INSERT INTO preferences (seeker_id, city, is_city_only, is_seekable)
-                    VALUES ($1, $2, $3, $4)
-                ''', seeker_id, city, is_city_only, is_seekable)
-            else:
-                # Обновляем существующую запись
-                update_fields = []
-                params = []
-                param_count = 1
-
-                if city is not None:
-                    update_fields.append(f"city = ${param_count}")
-                    params.append(city)
-                    param_count += 1
-
-                if is_city_only is not None:
-                    update_fields.append(f"is_city_only = ${param_count}")
-                    params.append(is_city_only)
-                    param_count += 1
-
-                if is_seekable is not None:
-                    update_fields.append(f"is_seekable = ${param_count}")
-                    params.append(is_seekable)
-                    param_count += 1
-
-                if update_fields:
-                    params.append(seeker_id)
-                    await connection.execute(f'''
-                        UPDATE preferences SET {', '.join(update_fields)} 
-                        WHERE seeker_id = ${param_count}
-                    ''', *params)
-
     async def get_user(self, telegram_id):
         async with self.pool.acquire() as connection:
             return await connection.fetchrow('''
                 SELECT s.*, p.city, p.is_city_only, p.is_seekable
                 FROM seekers s
-                LEFT JOIN preferences p ON s.id = p.seeker_id
+                LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
                 WHERE s.telegram_id = $1
             ''', telegram_id)
-
-    async def get_random_user(self, current_user_id):
-        async with self.pool.acquire() as connection:
-            return await connection.fetchrow('''
-                SELECT s.*, p.city, p.is_city_only 
-                FROM seekers s
-                LEFT JOIN preferences p ON s.id = p.seeker_id
-                WHERE s.telegram_id != $1 
-                AND s.id NOT IN (
-                    SELECT rejected_seeker_id FROM rejections WHERE seeker_id = (
-                        SELECT id FROM seekers WHERE telegram_id = $1
-                    )
-                )
-                AND s.is_active = TRUE
-                AND (p.is_seekable IS NULL OR p.is_seekable = TRUE)
-                ORDER BY RANDOM()
-                LIMIT 1
-            ''', current_user_id)
 
     async def add_rejection(self, seeker_id, rejected_seeker_id):
         async with self.pool.acquire() as connection:
@@ -230,80 +146,49 @@ class Database:
     async def get_seeker_id(self, telegram_id):
         async with self.pool.acquire() as connection:
             return await connection.fetchval('''
-                SELECT id FROM seekers WHERE telegram_id = $1
+                SELECT telegram_id FROM seekers WHERE telegram_id = $1
             ''', telegram_id)
-
-
-    async def get_user_topics(self, seeker_id):
-        async with self.pool.acquire() as connection:
-            topics = await connection.fetchrow('''
-                SELECT * FROM topics WHERE seeker_id = $1
-            ''', seeker_id)
-
-            if topics:
-                selected_topics = []
-                topics_dict = dict(topics)
-                for i in range(1, 21):  # 20 тем
-                    if topics_dict.get(f'word_{i}'):
-                        selected_topics.append(i)
-                return selected_topics
-            return []
-
-
-    async def update_topic(self, seeker_id, word_number, value):
-        async with self.pool.acquire() as connection:
-            # Проверяем, существует ли запись
-            exists = await connection.fetchval('''
-                SELECT 1 FROM topics WHERE seeker_id = $1
-            ''', seeker_id)
-
-            if not exists:
-                # Создаем новую запись со всеми false
-                await connection.execute('''
-                    INSERT INTO topics (seeker_id) VALUES ($1)
-                ''', seeker_id)
-
-            # Обновляем конкретное поле
-            await connection.execute(f'''
-                UPDATE topics SET word_{word_number} = $1 WHERE seeker_id = $2
-            ''', value, seeker_id)
 
     async def get_random_user(self, current_user_id):
         async with self.pool.acquire() as connection:
             # Получаем данные текущего пользователя
             current_user = await connection.fetchrow('''
-                SELECT s.*, p.is_seekable, p.city, p.is_city_only 
-                FROM seekers s 
-                LEFT JOIN preferences p ON s.id = p.seeker_id 
+                SELECT 
+                    s.*, p.is_seekable, p.city, p.is_city_only, p.photo_required
+                FROM 
+                    seekers s 
+                    LEFT JOIN preferences p ON s.telegram_id = p.seeker_id 
                 WHERE s.telegram_id = $1
             ''', current_user_id)
-
             if not current_user:
                 return None
 
             current_user = dict(current_user)
-            current_seeker_id = current_user['id']
+            current_seeker_id = current_user['telegram_id']
+
+            print(f"current_user={bool(current_user)}")
 
             # Получаем темы текущего пользователя
             current_topics = await self.get_user_topics(current_seeker_id)
-
             # Строим сложный запрос для поиска подходящего собеседника
             query = '''
-                SELECT s.*, p.city, p.is_city_only 
-                FROM seekers s
-                LEFT JOIN preferences p ON s.id = p.seeker_id
-                LEFT JOIN topics t ON s.id = t.seeker_id
+                SELECT 
+                    s.*, p.city, p.is_city_only 
+                FROM 
+                    seekers s
+                    LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
+                    LEFT JOIN topics t ON s.telegram_id = t.seeker_id
+                    LEFT JOIN photos ph ON s.telegram_id = ph.seeker_id
                 WHERE s.telegram_id != $1
                 AND s.is_active = TRUE
                 AND s.companion_telegram_id IS NULL
-                AND (p.is_seekable IS NULL OR p.is_seekable = TRUE)
-                AND s.id NOT IN (
-                    SELECT rejected_seeker_id FROM rejections WHERE seeker_id = $2
+                AND p.is_seekable = TRUE
+                AND s.telegram_id NOT IN (
+                    SELECT rejected_seeker_id FROM rejections WHERE seeker_id = $1
                 )
             '''
-
-            params = [current_user_id, current_seeker_id]
-            param_count = 3
+            params = [current_user_id,]
+            param_count = 2
 
             # 2. По противоположности пола
             if current_user['gender']:
@@ -324,6 +209,10 @@ class Database:
                 params.append(current_user['city'])
                 param_count += 1
 
+            # 7. Только с фото (если включена настройка)
+            if current_user.get('photo_required'):
+                query += f" AND ph.photo IS NOT NULL AND ph.confirmed = TRUE"
+
             # 1. По полному соответствию тем (если есть выбранные темы)
             if current_topics:
                 topic_conditions = []
@@ -336,10 +225,10 @@ class Database:
             query += " ORDER BY RANDOM() LIMIT 1"
 
             result = await connection.fetchrow(query, *params)
-
             if result:
                 user = dict(result)
-                user['topics'] = await self.get_user_topics(user['id'])
+                user['topics'] = await self.get_user_topics(user['telegram_id'])
+                user['photo'] = await self.get_user_photo(user['telegram_id'])
                 return user
 
             return None
@@ -380,5 +269,76 @@ class Database:
             await connection.execute(f'''
                 UPDATE topics SET word_{word_number} = $1 WHERE seeker_id = $2
             ''', value, seeker_id)
+
+    async def add_photo(self, seeker_id, photo):
+        async with self.pool.acquire() as connection:
+            # Удаляем старые фото пользователя
+            await connection.execute('''
+                DELETE FROM photos WHERE seeker_id = $1
+            ''', seeker_id)
+
+            # Добавляем новое фото
+            await connection.execute('''
+                INSERT INTO photos (seeker_id, photo, confirmed)
+                VALUES ($1, $2, TRUE)
+            ''', seeker_id, photo)
+
+    async def get_user_photo(self, seeker_id):
+        async with self.pool.acquire() as connection:
+            return await connection.fetchval('''
+                SELECT photo FROM photos WHERE seeker_id = $1 LIMIT 1
+            ''', seeker_id) # AND confirmed = TRUE
+
+    async def update_preferences(self, seeker_id, city=None, is_city_only=None, is_seekable=None, photo_required=None):
+        async with self.pool.acquire() as connection:
+            # Проверяем, существует ли запись
+            # exists = await connection.fetchval('''
+            #     SELECT 1 FROM preferences WHERE seeker_id = $1
+            # ''', seeker_id)
+            #
+            # if not exists:
+            #     # Создаем новую запись
+            #     await connection.execute('''
+            #         INSERT INTO preferences (seeker_id, city, is_city_only, is_seekable, photo_required)
+            #         VALUES ($1, $2, $3, $4, $5)
+            #     ''', seeker_id, city, is_city_only, is_seekable, photo_required)
+            # else:
+            # Обновляем существующую запись
+            update_fields = []
+            params = []
+            param_count = 1
+
+            if city is not None:
+                update_fields.append(f"city = ${param_count}")
+                params.append(city)
+                param_count += 1
+
+            if is_city_only is not None:
+                update_fields.append(f"is_city_only = ${param_count}")
+                params.append(is_city_only)
+                param_count += 1
+
+            if is_seekable is not None:
+                update_fields.append(f"is_seekable = ${param_count}")
+                params.append(is_seekable)
+                param_count += 1
+
+            if photo_required is not None:
+                update_fields.append(f"photo_required = ${param_count}")
+                params.append(photo_required)
+                param_count += 1
+
+            if update_fields:
+                # params.append(seeker_id)
+                await connection.execute(f'''
+                    UPDATE preferences SET {', '.join(update_fields)} 
+                    WHERE seeker_id = {seeker_id}
+                ''', *params)
+
+    async def remove_companion(self, telegram_id):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE seekers SET companion_telegram_id = NULL WHERE telegram_id = $1
+            ''', telegram_id)
 
 db = Database()
