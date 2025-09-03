@@ -1,4 +1,5 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from LEXICON import TOPICS_LIST
 
 def get_language_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -67,16 +68,9 @@ def get_profile_action_keyboard():
 
 
 def get_topics_keyboard(selected_topics=None):
+    topics = TOPICS_LIST
     if selected_topics is None:
         selected_topics = []
-
-    topics = [
-        "💼 Работа", "🎬 Кино", "🎵 Музыка", "📚 Книги",
-        "🏀 Спорт", "🎮 Игры", "🍳 Кулинария", "✈️ Путешествия",
-        "💻 Технологии", "🎨 Искусство", "🐶 Животные", "🌿 Природа",
-        "🏋️ Фитнес", "🎭 Театр", "📺 Сериалы", "💰 Финансы",
-        "🧠 Психология", "👶 Дети", "🚗 Авто", "🏠 Дом"
-    ]
 
     keyboard = []
     for i in range(0, len(topics), 2):

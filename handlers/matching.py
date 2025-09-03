@@ -1,19 +1,15 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 
+from LEXICON import TOPICS_LIST
+from LEXICON.numbers import age_groups
 from database import db
 from keyboards.main import get_profile_action_keyboard
 
 router = Router()
 
 # Список тем для отображения
-TOPICS_LIST = [
-    "💼 Работа", "🎬 Кино", "🎵 Музыка", "📚 Книги",
-    "🏀 Спорт", "🎮 Игры", "🍳 Кулинария", "✈️ Путешествия",
-    "💻 Технологии", "🎨 Искусство", "🐶 Животные", "🌿 Природа",
-    "🏋️ Фитнес", "🎭 Театр", "📺 Сериалы", "💰 Финансы",
-    "🧠 Психология", "👶 Дети", "🚗 Авто", "🏠 Дом"
-]
+
 
 
 @router.callback_query(F.data == "menu_search")
@@ -41,11 +37,6 @@ async def find_match(message: Message, user_id: int):
     if match_topics:
         topics_names = [TOPICS_LIST[i - 1] for i in match_topics if 1 <= i <= 20]
         topics_text = f"📝 Темы: {', '.join(topics_names)}"
-
-    age_groups = {
-        1: "18-20", 2: "20-24", 3: "25-29", 4: "30-34",
-        5: "35-39", 6: "40-44", 7: "45-49", 8: "50-54", 9: "55-60"
-    }
 
     caption = (
         f"👤 {match['first_name']}\n"

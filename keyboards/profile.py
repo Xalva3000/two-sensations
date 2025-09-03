@@ -1,7 +1,11 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
+from LEXICON.russian import TOPICS_LIST
 
-def get_gender_keyboard():
+
+def get_gender_keyboard(language=None):
+    
+
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="👨 Мужской")],
@@ -12,23 +16,22 @@ def get_gender_keyboard():
 
 
 def get_topics_keyboard(selected_topics=None):
+    topics = TOPICS_LIST
+
     if selected_topics is None:
         selected_topics = []
-
-    topics = [
-        "🎬 Кино", "🎵 Музыка", "📚 Книги", "🏀 Спорт",
-        "🎮 Игры", "🍳 Кулинария", "✈️ Путешествия", "💻 Технологии"
-    ]
 
     keyboard = []
     for i in range(0, len(topics), 2):
         row = []
         # Добавляем галочку к выбранным темам
         topic1_text = f"✅ {topics[i]}" if topics[i] in selected_topics else topics[i]
+
         row.append(InlineKeyboardButton(text=topic1_text, callback_data=f"topic_{topics[i]}"))
 
         if i + 1 < len(topics):
             topic2_text = f"✅ {topics[i + 1]}" if topics[i + 1] in selected_topics else topics[i + 1]
+
             row.append(InlineKeyboardButton(text=topic2_text, callback_data=f"topic_{topics[i + 1]}"))
 
         keyboard.append(row)
