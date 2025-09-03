@@ -6,15 +6,9 @@ from faker import Faker
 import psycopg2
 from psycopg2 import sql
 
-# Настройки подключения к PostgreSQL
-DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'two_sensations',
-    'user': 'sensbot',
-    'password': 'kavana367',
-    'port': '5432'
-}
+from config import config
 
+# Настройки подключения к PostgreSQ
 # Путь к папке с фотографиями
 PHOTOS_FOLDER = 'fotos'
 
@@ -28,7 +22,13 @@ class DataGenerator:
     def connect_to_db(self):
         """Подключение к базе данных"""
         try:
-            self.conn = psycopg2.connect(**DB_CONFIG)
+            self.conn = psycopg2.connect(
+                host=config.DB_HOST,
+                port=config.DB_PORT,
+                database=config.DB_NAME,
+                user=config.DB_USER,
+                password=config.DB_PASSWORD
+            )
             self.cursor = self.conn.cursor()
             print("Успешное подключение к базе данных")
         except Exception as e:
