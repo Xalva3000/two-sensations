@@ -10,6 +10,8 @@ from handlers.topics import router as topics_router
 from handlers.settings import router as settings_router
 from handlers.photo import router as photo_router
 from handlers.matching import router as matching_router
+from handlers.profile import router as profile_router
+from handlers.companions import router as companions_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -26,10 +28,13 @@ async def main():
     # Регистрация роутеров
     dp.include_router(start_router)
     dp.include_router(menu_router)
+    dp.include_router(companions_router)
     dp.include_router(topics_router)
     dp.include_router(settings_router)
     dp.include_router(photo_router)
     dp.include_router(matching_router)
+    dp.include_router(profile_router)
+
 
     try:
         await dp.start_polling(bot)

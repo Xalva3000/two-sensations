@@ -39,11 +39,22 @@ def get_interested_age_keyboard():
         [InlineKeyboardButton(text="55-60", callback_data="iage_9")]
     ])
 
+# def get_main_menu_keyboard():
+#     return InlineKeyboardMarkup(inline_keyboard=[
+#         [InlineKeyboardButton(text="📝 Заполнить анкету заново", callback_data="menu_restart")],
+#         [InlineKeyboardButton(text="🎭 Темы для общения", callback_data="menu_topics")],
+#         [InlineKeyboardButton(text="📸 Добавить фото", callback_data="menu_photo")],
+#         [InlineKeyboardButton(text="⚙️ Настройки", callback_data="menu_settings")],
+#         [InlineKeyboardButton(text="🔍 Найти собеседника", callback_data="menu_search")]
+#     ])
+
 def get_main_menu_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📝 Заполнить анкету заново", callback_data="menu_restart")],
+        [InlineKeyboardButton(text="👤 Мой профиль", callback_data="menu_view_profile")],
         [InlineKeyboardButton(text="🎭 Темы для общения", callback_data="menu_topics")],
+        [InlineKeyboardButton(text="📝 Заполнить анкету", callback_data="menu_restart")],
         [InlineKeyboardButton(text="📸 Добавить фото", callback_data="menu_photo")],
+        [InlineKeyboardButton(text="👥 Мои собеседники", callback_data="menu_companions")],
         [InlineKeyboardButton(text="⚙️ Настройки", callback_data="menu_settings")],
         [InlineKeyboardButton(text="🔍 Найти собеседника", callback_data="menu_search")]
     ])
@@ -54,15 +65,14 @@ def get_settings_keyboard():
         [InlineKeyboardButton(text="🌍 Поиск только в городе", callback_data="settings_city_only")],
         [InlineKeyboardButton(text="📸 Только с фото", callback_data="settings_photo_required")],
         [InlineKeyboardButton(text="👁️ Скрыть из поиска", callback_data="settings_hide")],
-        [InlineKeyboardButton(text="❌ Удалить собеседника", callback_data="settings_remove_companion")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="settings_back")]
     ])
 
-def get_profile_action_keyboard():
+def get_profile_action_keyboard(suggestion_id):
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Принять", callback_data="accept_profile"),
-            InlineKeyboardButton(text="❌ Отклонить", callback_data="reject_profile")
+            InlineKeyboardButton(text="✅ Принять", callback_data=f"accept_outer_profile_{suggestion_id}"),
+            InlineKeyboardButton(text="❌ Отклонить", callback_data=f"reject_profile_{suggestion_id}")
         ]
     ])
 
@@ -113,4 +123,20 @@ def get_photo_keyboard():
         [
             InlineKeyboardButton(text="⬅️ Отмена", callback_data="photo_cancel"),
         ],
+    ])
+
+
+
+def get_companions_menu_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👤 Тот, кого я нашел",
+                              callback_data="menu_view_outer_companion")],
+        [InlineKeyboardButton(text="👤 Тот, кто меня нашел",
+                              callback_data="menu_view_income_companion")],
+        [InlineKeyboardButton(text="❌ Удалить найденного собеседника",
+                              callback_data="settings_remove_outer_companion")],
+        [InlineKeyboardButton(text="❌ Удалить нашедшего собеседника",
+                              callback_data="settings_remove_income_companion")],
+        [InlineKeyboardButton(text="⬅️ Назад",
+                              callback_data="companions_back")]
     ])

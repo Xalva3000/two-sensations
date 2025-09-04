@@ -165,11 +165,22 @@ async def process_hide(callback: CallbackQuery, state: FSMContext):
     await state.clear()
 
 
-@router.callback_query(F.data == "settings_remove_companion")
-async def settings_remove_companion(callback: CallbackQuery):
-    await db.remove_companion(callback.from_user.id)
-    await callback.answer("✅ Собеседник удален")
-    await callback.message.edit_text(
-        "✅ Собеседник удален из вашего профиля",
-        reply_markup=get_settings_keyboard()
-    )
+# @router.callback_query(F.data == "settings_remove_outer_companion")
+# async def settings_remove_companion(callback: CallbackQuery):
+#     await db.remove_outer_companion(callback.from_user.id)
+#     await callback.answer("✅ Собеседник удален")
+#     await callback.message.edit_text(
+#         "✅ Собеседник, которого Вы нашли, удален из Вашего профиля",
+#         reply_markup=get_settings_keyboard()
+#     )
+#
+# @router.callback_query(F.data == "settings_remove_income_companion")
+# async def settings_remove_income_companion(callback: CallbackQuery):
+#     await db.remove_income_companion(callback.from_user.id)
+#     await callback.answer("✅ Собеседник удален")
+#     await callback.message.edit_text(
+#         "✅ Собеседник, который Вас нашел, удален из Вашего профиля",
+#         reply_markup=get_settings_keyboard()
+#     )
+
+

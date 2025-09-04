@@ -22,9 +22,11 @@ class Database:
                 CREATE TABLE IF NOT EXISTS seekers (
                     id BIGSERIAL PRIMARY KEY,
                     telegram_id BIGINT UNIQUE NOT NULL,
-                    companion_telegram_id BIGINT,
+                    outer_companion_telegram_id BIGINT,
+                    income_companion_telegram_id BIGINT,
                     username VARCHAR(100),
                     first_name VARCHAR(100),
+                    balance SMALLINT DEFAULT 100 NOT NULL,
                     language SMALLINT DEFAULT 1,
                     gender SMALLINT,
                     age SMALLINT,
@@ -35,6 +37,20 @@ class Database:
             ''')
 
             # Таблица доп.информации
+            await connection.execute('''
+                CREATE TABLE IF NOT EXISTS preferences (
+                    seeker_id BIGINT PRIMARY KEY REFERENCES seekers(telegram_id),
+                    about VARCHAR(250),
+                    city VARCHAR(100),
+                    is_city_only BOOLEAN DEFAULT FALSE NOT NULL,
+                    is_seekable BOOLEAN DEFAULT TRUE NOT NULL,
+                    photo_id varchar(200),
+                    is_photo_confirmed BOOLEAN DEFAULT FALSE NOT NULL,
+                    is_photo_required BOOLEAN DEFAULT FALSE NOT NULL
+                )
+            ''')
+
+            # Таблица тем для общения
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS topics (
                     seeker_id BIGINT REFERENCES seekers(telegram_id),
@@ -61,27 +77,6 @@ class Database:
                 )
             ''')
 
-            # Таблица доп.информации
-            await connection.execute('''
-                CREATE TABLE IF NOT EXISTS preferences (
-                    id BIGSERIAL PRIMARY KEY,
-                    seeker_id BIGINT REFERENCES seekers(telegram_id),
-                    city VARCHAR(100),
-                    is_city_only BOOLEAN DEFAULT FALSE NOT NULL,
-                    is_seekable BOOLEAN DEFAULT TRUE NOT NULL,
-                    photo_required BOOLEAN DEFAULT FALSE NOT NULL
-                )
-            ''')
-
-            # Таблица фотографий
-            await connection.execute('''
-                CREATE TABLE IF NOT EXISTS photos (
-                    id BIGSERIAL PRIMARY KEY,
-                    seeker_id BIGINT REFERENCES seekers(telegram_id),
-                    photo text,
-                    confirmed BOOLEAN DEFAULT FALSE NOT NULL
-                )
-            ''')
 
             # Таблица отклоненных анкет
             await connection.execute('''
@@ -129,10 +124,13 @@ class Database:
     async def get_user(self, telegram_id):
         async with self.pool.acquire() as connection:
             return await connection.fetchrow('''
-                SELECT s.*, p.city, p.is_city_only, p.is_seekable
-                FROM seekers s
-                LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
-                WHERE s.telegram_id = $1
+                SELECT 
+                    s.*, p.city, p.is_city_only, p.is_seekable, p.about
+                FROM 
+                    seekers s
+                    LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
+                WHERE 
+                    s.telegram_id = $1
             ''', telegram_id)
 
     async def add_rejection(self, seeker_id, rejected_seeker_id):
@@ -154,7 +152,7 @@ class Database:
             # Получаем данные текущего пользователя
             current_user = await connection.fetchrow('''
                 SELECT 
-                    s.*, p.is_seekable, p.city, p.is_city_only, p.photo_required
+                    s.*, p.is_seekable, p.city, p.is_city_only, p.is_photo_required
                 FROM 
                     seekers s 
                     LEFT JOIN preferences p ON s.telegram_id = p.seeker_id 
@@ -178,10 +176,9 @@ class Database:
                     seekers s
                     LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
                     LEFT JOIN topics t ON s.telegram_id = t.seeker_id
-                    LEFT JOIN photos ph ON s.telegram_id = ph.seeker_id
                 WHERE s.telegram_id != $1
                 AND s.is_active = TRUE
-                AND s.companion_telegram_id IS NULL
+                AND s.outer_companion_telegram_id IS NULL
                 AND p.is_seekable = TRUE
                 AND s.telegram_id NOT IN (
                     SELECT rejected_seeker_id FROM rejections WHERE seeker_id = $1
@@ -199,6 +196,12 @@ class Database:
 
             # 4. По интересующему возрасту
             if current_user['interested_age']:
+                query += f" AND s.interested_age = ${param_count}"
+                params.append(current_user['age'])
+                param_count += 1
+
+            # Возраст пользователя соответствует внешним пожеланиям
+            if current_user['age']:
                 query += f" AND s.age = ${param_count}"
                 params.append(current_user['interested_age'])
                 param_count += 1
@@ -210,8 +213,8 @@ class Database:
                 param_count += 1
 
             # 7. Только с фото (если включена настройка)
-            if current_user.get('photo_required'):
-                query += f" AND ph.photo IS NOT NULL AND ph.confirmed = TRUE"
+            if current_user.get('is_photo_required'):
+                query += f" AND p.photo IS NOT NULL AND p.confirmed = TRUE"
 
             # 1. По полному соответствию тем (если есть выбранные темы)
             if current_topics:
@@ -228,7 +231,7 @@ class Database:
             if result:
                 user = dict(result)
                 user['topics'] = await self.get_user_topics(user['telegram_id'])
-                user['photo'] = await self.get_user_photo(user['telegram_id'])
+                user['photo_id'] = await self.get_user_photo(user['telegram_id'])
                 return user
 
             return None
@@ -272,21 +275,19 @@ class Database:
 
     async def add_photo(self, seeker_id, photo):
         async with self.pool.acquire() as connection:
-            # Удаляем старые фото пользователя
-            await connection.execute('''
-                DELETE FROM photos WHERE seeker_id = $1
-            ''', seeker_id)
 
             # Добавляем новое фото
             await connection.execute('''
-                INSERT INTO photos (seeker_id, photo, confirmed)
-                VALUES ($1, $2, TRUE)
+                UPDATE preferences 
+                    SET photo_id = $2,
+                    is_photo_confirmed = TRUE 
+                WHERE seeker_id = $1
             ''', seeker_id, photo)
 
     async def get_user_photo(self, seeker_id):
         async with self.pool.acquire() as connection:
             return await connection.fetchval('''
-                SELECT photo FROM photos WHERE seeker_id = $1 LIMIT 1
+                SELECT photo_id FROM preferences WHERE seeker_id = $1
             ''', seeker_id) # AND confirmed = TRUE
 
     async def update_preferences(self, seeker_id, city=None, is_city_only=None, is_seekable=None, photo_required=None):
@@ -324,7 +325,7 @@ class Database:
                 param_count += 1
 
             if photo_required is not None:
-                update_fields.append(f"photo_required = ${param_count}")
+                update_fields.append(f"is_photo_required = ${param_count}")
                 params.append(photo_required)
                 param_count += 1
 
@@ -335,10 +336,68 @@ class Database:
                     WHERE seeker_id = {seeker_id}
                 ''', *params)
 
-    async def remove_companion(self, telegram_id):
+    async def remove_outer_companion(self, telegram_id):
         async with self.pool.acquire() as connection:
             await connection.execute('''
-                UPDATE seekers SET companion_telegram_id = NULL WHERE telegram_id = $1
+                UPDATE seekers 
+                SET outer_companion_telegram_id = NULL 
+                WHERE telegram_id = $1
+            ''', telegram_id)
+
+    async def remove_income_companion(self, telegram_id):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE seekers 
+                SET income_companion_telegram_id = NULL 
+                WHERE telegram_id = $1
+            ''', telegram_id)
+
+    async def set_outer_companion(self, telegram_id, new_companion_id):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE seekers 
+                SET outer_companion_telegram_id = $1 
+                WHERE telegram_id = $2
+            ''', new_companion_id, telegram_id)
+
+    async def set_income_companion(self, telegram_id, new_companion_id):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE seekers 
+                SET income_companion_telegram_id = $1 
+                WHERE telegram_id = $2
+            ''', new_companion_id, telegram_id)
+
+    async def update_about_me(self, telegram_id, about_me):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE preferences SET about = $1 WHERE seeker_id = $2
+            ''', about_me, telegram_id)
+
+    async def get_companion_info(self, companion_telegram_id):
+        async with self.pool.acquire() as connection:
+            return await connection.fetchrow('''
+                SELECT 
+                    s.*, p.city, p.photo_id
+                FROM seekers s
+                LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
+                WHERE s.telegram_id = $1
+            ''', companion_telegram_id)
+
+    async def decrease_balance(self, telegram_id):
+        async with self.pool.acquire() as connection:
+            return await connection.fetchrow('''
+                UPDATE seekers s
+                SET balance = balance -1
+                WHERE s.telegram_id = $1
+            ''', telegram_id)
+
+    async def increase_balance(self, telegram_id):
+        async with self.pool.acquire() as connection:
+            return await connection.fetchrow('''
+                UPDATE seekers s
+                SET balance = balance + 1
+                WHERE s.telegram_id = $1
             ''', telegram_id)
 
 db = Database()

@@ -4,8 +4,6 @@ returns trigger as $$
 BEGIN
         insert into preferences (seeker_id)
     values (NEW.telegram_id);
-        insert into photos (seeker_id)
-    values (NEW.telegram_id);
         insert into topics (seeker_id)
     values (NEW.telegram_id);
 
@@ -21,4 +19,13 @@ execute function create_seeker_preferences();
 
 
 insert into seekers (telegram_id, username, first_name, language, gender, age, interested_age, is_active)
-select telegram_id + 1, username || '1', first_name || '1', language, gender, age, interested_age, is_active from seekers s1;
+select telegram_id + 1, username || 'a', first_name || 'a', language, gender, age, interested_age, is_active
+from seekers s1 order by telegeam_id desc limit 1;
+
+insert into seekers (telegram_id, username, first_name, language, gender, age, interested_age, is_active)
+select telegram_id + 2, username || 'a', first_name || 'a', language, gender, age, interested_age, is_active
+from seekers s1 order by telegeam_id asc limit 1;
+
+insert into seekers (telegram_id, username, first_name, language, gender, age, interested_age, is_active)
+select telegram_id + 3, username || 'a', first_name || 'a', language, gender, age, interested_age, is_active
+from seekers s1 order by telegeam_id asc limit 1;

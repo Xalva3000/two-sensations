@@ -18,6 +18,9 @@ async def menu_search(callback: CallbackQuery):
     await find_match(callback.message, user_id)
 
 
+async def set_outer_companion(user_id: int, new_companion_id: int):
+    await db.set_outer_companion(user_id, new_companion_id)
+
 async def find_match(message: Message, user_id: int):
     user = await db.get_user(user_id)
 
@@ -52,29 +55,42 @@ async def find_match(message: Message, user_id: int):
 
     # Сохраняем ID найденного пользователя для последующих действий
     # Можно использовать FSM или временное хранилище
+    photo = match.get('photo_id', match['photo_id'])
+    if photo:
+        await message.answer_photo(
+            photo,
+            caption=caption,
+            reply_markup=get_profile_action_keyboard(match['telegram_id'])
+        )
+    else:
+        await message.answer(
+            text=caption,
+            reply_markup=get_profile_action_keyboard(match['telegram_id'])
+        )
 
-    await message.answer_photo(
-        match.get('photo', match['photo']),  # Заглушка для фото
-        caption=caption,
-        reply_markup=get_profile_action_keyboard()
-    )
 
-
-@router.callback_query(F.data == "reject_profile")
+@router.callback_query(F.data.startswith("reject_profile_"))
 async def reject_profile(callback: CallbackQuery):
-    current_seeker_id = await db.get_seeker_id(callback.from_user.id)
-    # Здесь нужно получить ID отклоняемого пользователя
-    # Для реализации нужно хранить последнего показанного пользователя
+
+    user_id = callback.from_user.id # await db.get_seeker_id(callback.from_user.id)
+    # Получение отклоненного пользователя
+    new_companion_id = int(callback.data.replace('reject_profile_', ''))
+    print(new_companion_id)
+
 
     await callback.answer("Анкета отклонена")
     await callback.message.delete()
 
     # Показываем следующую анкету
-    await find_match(callback.message)
+    # await find_match(callback.message, user_id)
 
 
-@router.callback_query(F.data == "accept_profile")
-async def accept_profile(callback: CallbackQuery):
+@router.callback_query(F.data.startswith("accept_outer_profile_"))
+async def accept_outer_profile(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    # получение id принятого собеседника
+    new_companion_id = int(callback.data.replace('accept_outer_profile_', ''))
+    await set_outer_companion(user_id, new_companion_id)
     # Здесь логика принятия собеседника
     await callback.answer("Контакт отправлен!")
     await callback.message.delete()
