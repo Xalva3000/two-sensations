@@ -99,12 +99,14 @@ async def report_companion(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("decrease_balance_"))
 async def decrease_companion_balance(callback: CallbackQuery):
     companion_id = int(callback.data.replace('decrease_balance_', ''))
+    print(companion_id)
     db.decrease_balance(companion_id)
     await callback.answer("Очки собеседника тают!")
 
 @router.callback_query(F.data.startswith("increase_balance_"))
 async def increase_companion_balance(callback: CallbackQuery):
     companion_id = int(callback.data.replace('increase_balance_', ''))
+    print(companion_id)
     db.increase_balance(companion_id)
     await callback.answer("Очки собеседника взлетают!")
 

@@ -3,7 +3,8 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
 from database import db
-from keyboards.main import get_main_menu_keyboard, get_settings_keyboard, get_companions_menu_keyboard
+from keyboards.main import (get_main_menu_keyboard, get_settings_keyboard, get_companions_menu_keyboard, get_language_keyboard)
+from handlers.start import RegistrationStates
 
 router = Router()
 
@@ -18,9 +19,6 @@ async def menu_back(callback: CallbackQuery):
 
 @router.callback_query(F.data == "menu_restart")
 async def menu_restart(callback: CallbackQuery, state: FSMContext):
-    from handlers.start import RegistrationStates
-    from keyboards.main import get_language_keyboard
-
     await callback.message.edit_text(
         "Выберите язык:",
         reply_markup=get_language_keyboard()
@@ -30,16 +28,18 @@ async def menu_restart(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "menu_settings")
 async def menu_settings(callback: CallbackQuery):
+    menu_title = "Настройки"
     await callback.message.edit_text(
-        "Настройки:",
+        text=f"_____{menu_title}_____",
         reply_markup=get_settings_keyboard()
     )
 
 
 @router.callback_query(F.data == "settings_back")
 async def settings_back(callback: CallbackQuery):
+    menu_title = "Главное меню"
     await callback.message.edit_text(
-        "Главное меню:",
+        text=f"_____{menu_title}_____",
         reply_markup=get_main_menu_keyboard()
     )
 

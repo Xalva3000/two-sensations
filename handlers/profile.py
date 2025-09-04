@@ -6,7 +6,7 @@ from aiogram.fsm.state import State, StatesGroup
 from database import db
 from LEXICON import TOPICS_LIST
 from LEXICON.numbers import age_groups
-from keyboards.main import get_main_menu_keyboard
+from keyboards.main import get_main_menu_keyboard, get_settings_keyboard
 
 router = Router()
 
@@ -40,7 +40,6 @@ async def view_my_profile(callback: CallbackQuery):
         profile_text += f"\n📖 О себе:\n{user['about']}\n"
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✏️ Редактировать 'О себе'", callback_data="edit_about_me")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile_back")]
     ])
 
@@ -66,11 +65,15 @@ async def process_about_me(message: Message, state: FSMContext):
     if len(about_me) > 250:
         await message.answer("❌ Слишком длинный текст. Максимум 250 символов.")
         return
-
+    print(message.from_user.id,)
     await db.update_about_me(message.from_user.id, about_me)
-    await message.answer("✅ Информация о себе сохранена!")
-    await view_my_profile(message)
+    # await message.answer()
     await state.clear()
+    menu_title = "✅ Информация о себе сохранена!"
+    await message.answer(
+        text=f"_____{menu_title}_____",
+        reply_markup=get_settings_keyboard()
+    )
 
 
 @router.callback_query(AboutMeState.waiting_for_about_me, F.data == "about_me_cancel")

@@ -34,8 +34,9 @@ async def cmd_start(message: Message, state: FSMContext):
         )
         await state.set_state(RegistrationStates.waiting_for_language)
     else:
+        menu_title = "Главное меню"
         await message.answer(
-            "Главное меню:",
+            text=f"_____{menu_title}_____",
             reply_markup=get_main_menu_keyboard()
         )
 

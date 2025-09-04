@@ -18,8 +18,9 @@ class SettingsState(StatesGroup):
 
 @router.callback_query(F.data == "menu_settings")
 async def menu_settings(callback: CallbackQuery):
+    menu_title = 'Настройки'
     await callback.message.edit_text(
-        "⚙️ Настройки:",
+        text=f"_____{menu_title}_____",
         reply_markup=get_settings_keyboard()
     )
 
