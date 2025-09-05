@@ -125,7 +125,7 @@ class Database:
         async with self.pool.acquire() as connection:
             return await connection.fetchrow('''
                 SELECT 
-                    s.*, p.city, p.is_city_only, p.is_seekable, p.about
+                    s.*, p.city, p.photo_id, p.is_city_only, p.is_seekable, p.about
                 FROM 
                     seekers s
                     LEFT JOIN preferences p ON s.telegram_id = p.seeker_id

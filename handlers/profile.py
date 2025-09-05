@@ -43,7 +43,20 @@ async def view_my_profile(callback: CallbackQuery):
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile_back")]
     ])
 
-    await callback.message.edit_text(profile_text, reply_markup=keyboard)
+    # await callback.message.edit_text(profile_text, reply_markup=keyboard)
+
+    photo = user.get('photo_id', user['photo_id'])
+    if photo:
+        await callback.message.answer_photo(
+            photo,
+            caption=profile_text,
+            reply_markup=keyboard
+        )
+    else:
+        await callback.answer(
+            text=profile_text,
+            reply_markup=keyboard
+        )
 
 
 @router.callback_query(F.data == "edit_about_me")
@@ -87,7 +100,8 @@ async def about_me_cancel(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "profile_back")
 async def profile_back(callback: CallbackQuery):
-    await callback.message.edit_text(
-        "Главное меню:",
-        reply_markup=get_main_menu_keyboard()
-    )
+    await callback.message.delete()
+    # await callback.message.edit_text(
+    #     "Главное меню:",
+    #     reply_markup=get_main_menu_keyboard()
+    # )
