@@ -214,7 +214,7 @@ class Database:
 
             # 7. Только с фото (если включена настройка)
             if current_user.get('is_photo_required'):
-                query += f" AND p.photo_id IS NOT NULL AND p.confirmed = TRUE"
+                query += f" AND p.photo_id IS NOT NULL AND p.is_photo_confirmed = TRUE"
 
             # 1. По полному соответствию тем (если есть выбранные темы)
             if current_topics:
