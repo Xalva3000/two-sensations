@@ -136,3 +136,9 @@ async def accept_outer_profile(callback: CallbackQuery):
         await callback.answer("❌ Запрос был отклонен ранее")
         return
 
+@router.callback_query(F.data == "connection_cancel")
+async def back_to_companions(callback: CallbackQuery):
+    try:
+        await callback.message.delete()
+    except:
+        pass  # Игнорируем ошибки удаления

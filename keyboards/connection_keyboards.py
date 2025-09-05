@@ -14,10 +14,8 @@ def get_connection_response_keyboard(to_user_id, accepted):
 
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(
-                text=f"🔄 Запрос {status}",
-                callback_data="none"
-            )]
+            [InlineKeyboardButton(text=f"🔄 Запрос {status}", callback_data="none")],
+            [InlineKeyboardButton(text=f"Закрыть", callback_data="connection_cancel")],
         ])
 
 def get_profile_action_keyboard(companion_id, has_pending_request=False, is_connected=False):
