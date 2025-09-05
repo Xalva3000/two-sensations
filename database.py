@@ -164,8 +164,6 @@ class Database:
             current_user = dict(current_user)
             current_seeker_id = current_user['telegram_id']
 
-            print(f"current_user={bool(current_user)}")
-
             # Получаем темы текущего пользователя
             current_topics = await self.get_user_topics(current_seeker_id)
             # Строим сложный запрос для поиска подходящего собеседника
@@ -181,7 +179,9 @@ class Database:
                 AND s.outer_companion_telegram_id IS NULL
                 AND p.is_seekable = TRUE
                 AND s.telegram_id NOT IN (
-                    SELECT rejected_seeker_id FROM rejections WHERE seeker_id = $1
+                    SELECT rejected_seeker_id 
+                    FROM rejections 
+                    WHERE seeker_id = $1
                 )
             '''
             params = [current_user_id,]
@@ -214,7 +214,7 @@ class Database:
 
             # 7. Только с фото (если включена настройка)
             if current_user.get('is_photo_required'):
-                query += f" AND p.photo IS NOT NULL AND p.confirmed = TRUE"
+                query += f" AND p.photo_id IS NOT NULL AND p.confirmed = TRUE"
 
             # 1. По полному соответствию тем (если есть выбранные темы)
             if current_topics:

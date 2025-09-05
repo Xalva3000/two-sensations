@@ -29,7 +29,6 @@ async def find_match(message: Message, user_id: int):
         return
 
     match = await db.get_random_user(user_id)
-    print(f"{match=}")
     if not match:
         await message.answer("Пока нет подходящих анкет. Попробуйте позже!")
         return
@@ -75,8 +74,6 @@ async def reject_profile(callback: CallbackQuery):
     user_id = callback.from_user.id # await db.get_seeker_id(callback.from_user.id)
     # Получение отклоненного пользователя
     new_companion_id = int(callback.data.replace('reject_profile_', ''))
-    print(new_companion_id)
-
 
     await callback.answer("Анкета отклонена")
     await callback.message.delete()
