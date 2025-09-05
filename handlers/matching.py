@@ -41,17 +41,20 @@ async def find_match(message: Message, user_id: int):
         topics_names = [TOPICS_LIST[i - 1] for i in match_topics if 1 <= i <= 20]
         topics_text = f"📝 Темы: {', '.join(topics_names)}"
 
-    caption = (
+    profile_text = (
         f"👤 {match['first_name']}\n"
         f"🎂 Возраст: {age_groups.get(match['age'], 'Не указан')}\n"
         f"👫 Пол: {'Мужской' if match['gender'] == 1 else 'Женский'}\n"
     )
 
     if match.get('city'):
-        caption += f"🏙️ Город: {match['city']}\n"
+        profile_text += f"🏙️ Город: {match['city']}\n"
+
+    if user.get('about'):
+        profile_text += f"\n📖 О себе:\n{user['about']}\n"
 
     if topics_text:
-        caption += f"{topics_text}\n"
+        profile_text += f"{topics_text}\n"
 
     # Сохраняем ID найденного пользователя для последующих действий
     # Можно использовать FSM или временное хранилище
@@ -59,12 +62,12 @@ async def find_match(message: Message, user_id: int):
     if photo:
         await message.answer_photo(
             photo,
-            caption=caption,
+            caption=profile_text,
             reply_markup=get_profile_action_keyboard(match['telegram_id'])
         )
     else:
         await message.answer(
-            text=caption,
+            text=profile_text,
             reply_markup=get_profile_action_keyboard(match['telegram_id'])
         )
 

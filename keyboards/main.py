@@ -51,7 +51,8 @@ def get_main_menu_keyboard():
 
 def get_settings_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📝 Изменить анкету ", callback_data="menu_restart")],
+        [InlineKeyboardButton(text="📝 Изменить анкету ", callback_data="settings_restart_profile")],
+        [InlineKeyboardButton(text="📞 Импорт моего контакта", callback_data="settings_import_contact")],
         [InlineKeyboardButton(text="✏️ Редактировать 'О себе'", callback_data="edit_about_me")],
         [InlineKeyboardButton(text="📸 Добавить фото", callback_data="menu_photo")],
         [InlineKeyboardButton(text="📸 Искать только с фото", callback_data="settings_photo_required")],

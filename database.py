@@ -208,13 +208,13 @@ class Database:
                 params.append(opposite_gender)
                 param_count += 1
 
-            # 4. По интересующему возрасту
+            # 3. Возраст подходит
             if current_user['interested_age']:
                 query += f" AND s.interested_age = ${param_count}"
                 params.append(current_user['age'])
                 param_count += 1
 
-            # Возраст пользователя соответствует внешним пожеланиям
+            # 4. Возраст пользователя соответствует пожеланиям собеседника
             if current_user['age']:
                 query += f" AND s.age = ${param_count}"
                 params.append(current_user['interested_age'])
@@ -443,5 +443,11 @@ class Database:
             return await connection.fetchval('''
                 SELECT username FROM seekers WHERE telegram_id = $1
             ''', user_id)
+
+    async def update_username(self, telegram_id, username):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE seekers SET username = $1 WHERE telegram_id = $2
+            ''', username, telegram_id)
 
 db = Database()

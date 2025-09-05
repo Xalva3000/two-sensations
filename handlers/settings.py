@@ -36,6 +36,44 @@ async def settings_restart_profile(callback: CallbackQuery, state: FSMContext):
     await state.set_state(RegistrationStates.waiting_for_language)
 
 
+@router.callback_query(F.data == "settings_import_contact")
+async def settings_import_contact(callback: CallbackQuery, state: FSMContext):
+    user = callback.from_user
+    if user.username:
+        # Сохраняем username в базу
+        await db.update_username(user.id, user.username)
+
+        await callback.message.edit_text(
+            f"✅ Контакт обновлен!\n\n"
+            f"Ваш контакт: @{user.username}\n\n"
+            f"Теперь, если Ваша анкета будет кому-то\n"
+            f"интересна, то Бот спросит у Вас разрешение\n"
+            f"на передачу Вашего контакта.",
+            reply_markup=get_settings_keyboard()
+        )
+    else:
+        await callback.message.edit_text(
+            "❌ У вас не установлен username!\n\n"
+            "Чтобы использовать эту функцию:\n"
+            "1. Зайдите в настройки Telegram\n"
+            "2. Выберите 'Имя пользователя'\n"
+            "3. Установите уникальное имя\n"
+            "4. Вернитесь и попробуйте снова",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="settings_import_contact")],
+                [InlineKeyboardButton(text="⬅️ Назад", callback_data="contact_import_cancel")]
+            ])
+        )
+
+@router.callback_query(F.data == "contact_import_cancel")
+async def contact_import_cancel(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(
+        "⚙️ Настройки:",
+        reply_markup=get_settings_keyboard()
+    )
+    await state.clear()
+
+
 @router.callback_query(F.data == "settings_back")
 async def settings_back(callback: CallbackQuery):
     menu_title = "Главное меню"

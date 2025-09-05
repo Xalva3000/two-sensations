@@ -54,7 +54,7 @@ async def view_my_profile(callback: CallbackQuery):
             reply_markup=keyboard
         )
     else:
-        await callback.answer(
+        await callback.message.answer(
             text=profile_text,
             reply_markup=keyboard
         )
