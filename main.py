@@ -12,6 +12,7 @@ from handlers.photo import router as photo_router
 from handlers.matching import router as matching_router
 from handlers.profile import router as profile_router
 from handlers.companions import router as companions_router
+# from handlers.contacts import router as contacts_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -26,6 +27,7 @@ async def main():
     dp = Dispatcher()
 
     # Регистрация роутеров
+    # dp.include_router(contacts_router)
     dp.include_router(start_router)
     dp.include_router(menu_router)
     dp.include_router(companions_router)

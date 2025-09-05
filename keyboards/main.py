@@ -120,15 +120,21 @@ def get_photo_keyboard():
 
 
 def get_companions_menu_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👤 Тот, кого я нашел",
-                              callback_data="menu_view_outer_companion")],
-        [InlineKeyboardButton(text="👤 Тот, кто меня нашел",
-                              callback_data="menu_view_income_companion")],
-        [InlineKeyboardButton(text="❌ Удалить найденного собеседника",
-                              callback_data="settings_remove_outer_companion")],
-        [InlineKeyboardButton(text="❌ Удалить нашедшего собеседника",
-                              callback_data="settings_remove_income_companion")],
-        [InlineKeyboardButton(text="⬅️ Назад",
-                              callback_data="companions_back")]
-    ])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(
+                text="👤 Тот, кого я нашел",
+                callback_data="menu_view_outer_companion")],
+            [InlineKeyboardButton(
+                text="👤 Тот, кто меня нашел",
+                callback_data="menu_view_income_companion")],
+            [InlineKeyboardButton(
+                text="❌ Удалить найденного собеседника",
+                callback_data="settings_remove_outer_companion")],
+            [InlineKeyboardButton(
+                text="❌ Удалить нашедшего собеседника",
+                callback_data="settings_remove_income_companion")],
+            [InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data="companions_back")]
+        ])

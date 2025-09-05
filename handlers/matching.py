@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from LEXICON import TOPICS_LIST
 from LEXICON.numbers import age_groups
 from database import db
+from keyboards.connection_keyboards import get_connection_response_keyboard, get_connection_request_keyboard
 from keyboards.main import get_profile_action_keyboard
 
 router = Router()
@@ -87,11 +88,15 @@ async def accept_outer_profile(callback: CallbackQuery):
     user_id = callback.from_user.id
     # получение id принятого собеседника
     new_companion_id = int(callback.data.replace('accept_outer_profile_', ''))
+
+    # Установка найденного пользователя в свои собеседники
     await set_outer_companion(user_id, new_companion_id)
-    # Здесь логика принятия собеседника
     await callback.answer("Контакт отправлен!")
     await callback.message.delete()
     await callback.message.answer(
         "Вот контакт пользователя: @username\n"
         "Свяжитесь с ним для общения!"
     )
+
+
+

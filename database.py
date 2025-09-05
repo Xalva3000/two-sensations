@@ -88,6 +88,19 @@ class Database:
                 )
             ''')
 
+            # Таблица запросов на обмен контактами
+            await connection.execute('''
+                CREATE TABLE IF NOT EXISTS connection_requests (
+                    id BIGSERIAL PRIMARY KEY,
+                    from_user_id BIGINT REFERENCES seekers(telegram_id),
+                    to_user_id BIGINT REFERENCES seekers(telegram_id),
+                    status VARCHAR(20) DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    responded_at TIMESTAMP,
+                    UNIQUE(from_user_id, to_user_id)
+                )
+            ''')
+
     async def add_user(self, telegram_id, username, first_name):
         async with self.pool.acquire() as connection:
             return await connection.fetchrow('''
@@ -386,18 +399,48 @@ class Database:
 
     async def decrease_balance(self, telegram_id):
         async with self.pool.acquire() as connection:
-            return await connection.fetchrow('''
-                UPDATE seekers s
-                SET balance = balance -1
-                WHERE s.telegram_id = $1
+            await connection.execute('''
+                UPDATE seekers
+                SET balance = balance - 1
+                WHERE telegram_id = $1
             ''', telegram_id)
 
     async def increase_balance(self, telegram_id):
         async with self.pool.acquire() as connection:
-            return await connection.fetchrow('''
-                UPDATE seekers s
+            await connection.execute('''
+                UPDATE seekers
                 SET balance = balance + 1
-                WHERE s.telegram_id = $1
+                WHERE telegram_id = $1
             ''', telegram_id)
+
+    async def create_connection_request(self, from_user_id, to_user_id):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                INSERT INTO connection_requests (from_user_id, to_user_id, status)
+                VALUES ($1, $2, 'pending')
+                ON CONFLICT (from_user_id, to_user_id) DO UPDATE 
+                SET status = 'pending', created_at = NOW()
+            ''', from_user_id, to_user_id)
+
+    async def get_connection_request(self, from_user_id, to_user_id):
+        async with self.pool.acquire() as connection:
+            return await connection.fetchrow('''
+                SELECT * FROM connection_requests 
+                WHERE from_user_id = $1 AND to_user_id = $2
+            ''', from_user_id, to_user_id)
+
+    async def update_connection_request(self, from_user_id, to_user_id, status):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE connection_requests 
+                SET status = $3, responded_at = NOW()
+                WHERE from_user_id = $1 AND to_user_id = $2
+            ''', from_user_id, to_user_id, status)
+
+    async def get_user_username(self, user_id):
+        async with self.pool.acquire() as connection:
+            return await connection.fetchval('''
+                SELECT username FROM seekers WHERE telegram_id = $1
+            ''', user_id)
 
 db = Database()
