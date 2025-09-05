@@ -187,15 +187,16 @@ class Database:
                     seekers s
                     LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
                     LEFT JOIN topics t ON s.telegram_id = t.seeker_id
-                WHERE s.telegram_id != $1
-                AND s.is_active = TRUE
-                AND s.outer_companion_telegram_id IS NULL
-                AND p.is_seekable = TRUE
-                AND s.telegram_id NOT IN (
-                    SELECT rejected_seeker_id 
-                    FROM rejections 
-                    WHERE seeker_id = $1
-                )
+                WHERE 
+                    s.telegram_id != $1
+                    AND s.is_active = TRUE
+                    AND s.income_companion_telegram_id IS NULL
+                    AND p.is_seekable = TRUE
+                    AND s.telegram_id NOT IN (
+                            SELECT rejected_seeker_id 
+                            FROM rejections 
+                            WHERE seeker_id = $1
+                    )
             '''
             params = [current_user_id,]
             param_count = 2

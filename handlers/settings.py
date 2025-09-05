@@ -1,10 +1,21 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
+)
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from database import db
-from keyboards.main import get_settings_keyboard, get_boolean_choice_keyboard, get_main_menu_keyboard
+from keyboards.main import (
+    get_settings_keyboard,
+    get_boolean_choice_keyboard,
+    get_main_menu_keyboard,
+    get_language_keyboard,
+)
+from handlers.start import RegistrationStates
 
 router = Router()
 
@@ -16,22 +27,22 @@ class SettingsState(StatesGroup):
     waiting_for_hide = State()
 
 
-@router.callback_query(F.data == "menu_settings")
-async def menu_settings(callback: CallbackQuery):
-    menu_title = 'Настройки'
+@router.callback_query(F.data == "settings_restart_profile")
+async def settings_restart_profile(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        text=f"_____{menu_title}_____",
-        reply_markup=get_settings_keyboard()
+        "Выберите язык:",
+        reply_markup=get_language_keyboard()
     )
+    await state.set_state(RegistrationStates.waiting_for_language)
 
 
 @router.callback_query(F.data == "settings_back")
 async def settings_back(callback: CallbackQuery):
+    menu_title = "Главное меню"
     await callback.message.edit_text(
-        "Главное меню:",
+        text=f"_____{menu_title}_____",
         reply_markup=get_main_menu_keyboard()
     )
-
 
 @router.callback_query(F.data == "settings_city")
 async def settings_city(callback: CallbackQuery, state: FSMContext):
@@ -183,5 +194,11 @@ async def process_hide(callback: CallbackQuery, state: FSMContext):
 #         "✅ Собеседник, который Вас нашел, удален из Вашего профиля",
 #         reply_markup=get_settings_keyboard()
 #     )
-
+#
+# @router.callback_query(F.data == "settings_back")
+# async def settings_back(callback: CallbackQuery):
+#     await callback.message.edit_text(
+#         "Главное меню:",
+#         reply_markup=get_main_menu_keyboard()
+#     )
 

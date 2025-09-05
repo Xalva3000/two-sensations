@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from LEXICON import TOPICS_LIST
 
+
 def get_language_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Русский 🇷🇺", callback_data="lang_1")],
@@ -116,8 +117,6 @@ def get_photo_keyboard():
             InlineKeyboardButton(text="⬅️ Отмена", callback_data="photo_cancel"),
         ],
     ])
-
-
 
 def get_companions_menu_keyboard():
     return InlineKeyboardMarkup(

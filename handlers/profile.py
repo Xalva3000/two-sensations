@@ -8,6 +8,7 @@ from LEXICON import TOPICS_LIST
 from LEXICON.numbers import age_groups
 from keyboards.main import get_main_menu_keyboard, get_settings_keyboard
 
+# profile router
 router = Router()
 
 
