@@ -1,5 +1,6 @@
 import asyncpg
 from config import config
+from data_types.topics_mask import TopicsMask
 
 
 class Database:
@@ -50,30 +51,37 @@ class Database:
                 )
             ''')
 
-            # Таблица тем для общения
+            # # Таблица тем для общения
+            # await connection.execute('''
+            #     CREATE TABLE IF NOT EXISTS topics (
+            #         seeker_id BIGINT REFERENCES seekers(telegram_id),
+            #         word_1 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_2 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_3 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_4 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_5 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_6 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_7 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_8 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_9 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_10 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_11 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_12 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_13 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_14 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_15 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_16 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_17 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_18 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_19 BOOLEAN DEFAULT FALSE NOT NULL,
+            #         word_20 BOOLEAN DEFAULT FALSE NOT NULL
+            #     )
+            # ''')
+
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS topics (
-                    seeker_id BIGINT REFERENCES seekers(telegram_id),
-                    word_1 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_2 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_3 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_4 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_5 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_6 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_7 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_8 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_9 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_10 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_11 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_12 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_13 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_14 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_15 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_16 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_17 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_18 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_19 BOOLEAN DEFAULT FALSE NOT NULL,
-                    word_20 BOOLEAN DEFAULT FALSE NOT NULL
+                    seeker_id BIGINT PRIMARY KEY REFERENCES seekers(telegram_id),
+                    topics_mask BIGINT DEFAULT 0 NOT NULL
                 )
             ''')
 
@@ -250,42 +258,42 @@ class Database:
 
             return None
 
-    async def get_user_topics(self, seeker_id):
-        async with self.pool.acquire() as connection:
-            topics = await connection.fetchrow('''
-                SELECT * FROM topics WHERE seeker_id = $1
-            ''', seeker_id)
+    # async def get_user_topics(self, seeker_id):
+    #     async with self.pool.acquire() as connection:
+    #         topics = await connection.fetchrow('''
+    #             SELECT * FROM topics WHERE seeker_id = $1
+    #         ''', seeker_id)
+    #
+    #         if topics:
+    #             selected_topics = []
+    #             topics_dict = dict(topics)
+    #             for i in range(1, 21):  # 20 тем
+    #                 if topics_dict.get(f'word_{i}'):
+    #                     selected_topics.append(i)
+    #             return selected_topics
+    #         return []
 
-            if topics:
-                selected_topics = []
-                topics_dict = dict(topics)
-                for i in range(1, 21):  # 20 тем
-                    if topics_dict.get(f'word_{i}'):
-                        selected_topics.append(i)
-                return selected_topics
-            return []
-
-    async def update_topic(self, seeker_id, word_number, value):
-        async with self.pool.acquire() as connection:
-            # Проверяем, существует ли запись
-            exists = await connection.fetchval('''
-                SELECT 1 FROM topics WHERE seeker_id = $1
-            ''', seeker_id)
-
-            if not exists:
-                # Создаем новую запись со всеми false
-                columns = ['seeker_id'] + [f'word_{i}' for i in range(1, 21)]
-                values = [seeker_id] + [False] * 20
-                placeholders = ', '.join([f'${i + 1}' for i in range(len(values))])
-
-                await connection.execute(f'''
-                    INSERT INTO topics ({', '.join(columns)}) VALUES ({placeholders})
-                ''', *values)
-
-            # Обновляем конкретное поле
-            await connection.execute(f'''
-                UPDATE topics SET word_{word_number} = $1 WHERE seeker_id = $2
-            ''', value, seeker_id)
+    # async def update_topic(self, seeker_id, word_number, value):
+    #     async with self.pool.acquire() as connection:
+    #         # Проверяем, существует ли запись
+    #         exists = await connection.fetchval('''
+    #             SELECT 1 FROM topics WHERE seeker_id = $1
+    #         ''', seeker_id)
+    #
+    #         if not exists:
+    #             # Создаем новую запись со всеми false
+    #             columns = ['seeker_id'] + [f'word_{i}' for i in range(1, 21)]
+    #             values = [seeker_id] + [False] * 20
+    #             placeholders = ', '.join([f'${i + 1}' for i in range(len(values))])
+    #
+    #             await connection.execute(f'''
+    #                 INSERT INTO topics ({', '.join(columns)}) VALUES ({placeholders})
+    #             ''', *values)
+    #
+    #         # Обновляем конкретное поле
+    #         await connection.execute(f'''
+    #             UPDATE topics SET word_{word_number} = $1 WHERE seeker_id = $2
+    #         ''', value, seeker_id)
 
     async def add_photo(self, seeker_id, photo):
         async with self.pool.acquire() as connection:
@@ -449,5 +457,52 @@ class Database:
             await connection.execute('''
                 UPDATE seekers SET username = $1 WHERE telegram_id = $2
             ''', username, telegram_id)
+
+    async def update_topic(self, seeker_id, topic_index, value):
+        async with self.pool.acquire() as connection:
+            # Получаем текущую маску
+            current_mask = await connection.fetchval('''
+                SELECT topics_mask FROM topics WHERE seeker_id = $1
+            ''', seeker_id)
+
+            if current_mask is None:
+                # Создаем новую запись
+                topics_mask = TopicsMask()
+                topics_mask.set_topic(topic_index, value)
+                await connection.execute('''
+                    INSERT INTO topics (seeker_id, topics_mask)
+                    VALUES ($1, $2)
+                ''', seeker_id, topics_mask.to_int())
+            else:
+                # Обновляем существующую маску
+                topics_mask = TopicsMask().from_int(current_mask)
+                topics_mask.set_topic(topic_index, value)
+                await connection.execute('''
+                    UPDATE topics SET topics_mask = $1, updated_at = NOW()
+                    WHERE seeker_id = $2
+                ''', topics_mask.to_int(), seeker_id)
+
+    async def get_user_topics(self, seeker_id):
+        async with self.pool.acquire() as connection:
+            mask_int = await connection.fetchval('''
+                SELECT topics_mask FROM topics WHERE seeker_id = $1
+            ''', seeker_id)
+
+            if mask_int is not None:
+                topics_mask = TopicsMask().from_int(mask_int)
+                return topics_mask.get_all_topics()
+            return []
+
+    async def set_user_topics(self, seeker_id, topics_list):
+        async with self.pool.acquire() as connection:
+            topics_mask = TopicsMask()
+            topics_mask.set_from_list(topics_list)
+
+            await connection.execute('''
+                INSERT INTO topics (seeker_id, topics_mask)
+                VALUES ($1, $2)
+                ON CONFLICT (seeker_id) DO UPDATE 
+                SET topics_mask = $2
+            ''', seeker_id, topics_mask.to_int())
 
 db = Database()

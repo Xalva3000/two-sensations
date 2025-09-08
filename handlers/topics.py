@@ -33,32 +33,62 @@ async def topics_back_to_main(callback: CallbackQuery):
 @router.callback_query(F.data == "topics_edit")
 async def topics_edit(callback: CallbackQuery, state: FSMContext):
     # Получаем текущие выбранные темы пользователя
-    seeker_id = callback.from_user.id #  await db.get_seeker_id(callback.from_user.id)
+    seeker_id = callback.from_user.id
     selected_topics = await db.get_user_topics(seeker_id)
 
     await callback.message.edit_text(
-        "Выберите интересующие темы (можно выбрать несколько):\n"
+        "🎯 Выберите интересующие темы (можно выбрать несколько):\n\n"
         "✅ - тема выбрана\n"
         "Нажмите на тему, чтобы выбрать/отменить выбор\n\n"
-        f"Выбрано тем: {len(selected_topics)}/20",
+        f"Выбрано тем: {len(selected_topics)}/36",
         reply_markup=get_topics_keyboard(selected_topics)
     )
     await state.set_state(TopicsState.editing_topics)
     await state.update_data(selected_topics=selected_topics)
 
+@router.callback_query(F.data == "topics_clear")
+async def topics_clear(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(selected_topics=[])
+    await callback.message.edit_reply_markup(
+        reply_markup=get_topics_keyboard([])
+    )
+    await callback.answer("Все темы очищены")
 
-@router.callback_query(TopicsState.editing_topics, F.data.startswith("topic_"))
+# @router.callback_query(TopicsState.editing_topics, F.data.startswith("topic_"))
+# async def process_topic_selection(callback: CallbackQuery, state: FSMContext):
+#     topic_number = int(callback.data.split("_")[1])
+#     data = await state.get_data()
+#     selected_topics = data.get("selected_topics", [])
+#
+#     # Добавляем или удаляем тему
+#     if topic_number in selected_topics:
+#         selected_topics.remove(topic_number)
+#         action = "удалена"
+#     else:
+#         selected_topics.append(topic_number)
+#         action = "добавлена"
+#
+#     await state.update_data(selected_topics=selected_topics)
+#
+#     # Обновляем клавиатуру
+#     await callback.message.edit_reply_markup(
+#         reply_markup=get_topics_keyboard(selected_topics)
+#     )
+#     await callback.answer(f"Тема {action}")
+
+
+@router.callback_query(F.data.startswith("topic_"))
 async def process_topic_selection(callback: CallbackQuery, state: FSMContext):
-    topic_number = int(callback.data.split("_")[1])
+    topic_index = int(callback.data.split("_")[1])
     data = await state.get_data()
     selected_topics = data.get("selected_topics", [])
 
     # Добавляем или удаляем тему
-    if topic_number in selected_topics:
-        selected_topics.remove(topic_number)
+    if topic_index in selected_topics:
+        selected_topics.remove(topic_index)
         action = "удалена"
     else:
-        selected_topics.append(topic_number)
+        selected_topics.append(topic_index)
         action = "добавлена"
 
     await state.update_data(selected_topics=selected_topics)
@@ -69,25 +99,39 @@ async def process_topic_selection(callback: CallbackQuery, state: FSMContext):
     )
     await callback.answer(f"Тема {action}")
 
+# @router.callback_query(TopicsState.editing_topics, F.data == "topics_save")
+# async def topics_save(callback: CallbackQuery, state: FSMContext):
+#     data = await state.get_data()
+#     selected_topics = data.get("selected_topics", [])
+#     seeker_id = callback.from_user.id  # await db.get_seeker_id(callback.from_user.id)
+#
+#     # Сохраняем все темы в базу
+#     for topic_num in range(1, 21):
+#         value = topic_num in selected_topics
+#         await db.update_topic(seeker_id, topic_num, value)
+#
+#     await callback.message.edit_text(
+#         f"✅ Темы сохранены! Выбрано тем: {len(selected_topics)}\n"
+#         "Теперь мы сможем лучше подбирать собеседников по вашим интересам.",
+#         reply_markup=get_topics_menu_keyboard()
+#     )
+#     await state.clear()
+#     await callback.answer("Темы сохранены!")
 
-@router.callback_query(TopicsState.editing_topics, F.data == "topics_save")
+@router.callback_query(F.data == "topics_save")
 async def topics_save(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     selected_topics = data.get("selected_topics", [])
-    seeker_id = callback.from_user.id  # await db.get_seeker_id(callback.from_user.id)
+    seeker_id = callback.from_user.id
 
     # Сохраняем все темы в базу
-    for topic_num in range(1, 21):
-        value = topic_num in selected_topics
-        await db.update_topic(seeker_id, topic_num, value)
+    await db.set_user_topics(seeker_id, selected_topics)
 
     await callback.message.edit_text(
-        f"✅ Темы сохранены! Выбрано тем: {len(selected_topics)}\n"
-        "Теперь мы сможем лучше подбирать собеседников по вашим интересам.",
+        f"✅ Темы сохранены! Выбрано тем: {len(selected_topics)}",
         reply_markup=get_topics_menu_keyboard()
     )
     await state.clear()
-    await callback.answer("Темы сохранены!")
 
 
 @router.callback_query(TopicsState.editing_topics, F.data == "topics_back")

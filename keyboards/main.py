@@ -71,28 +71,72 @@ def get_profile_action_keyboard(suggestion_id):
     ])
 
 
+# def get_topics_keyboard(selected_topics=None):
+#     topics = TOPICS_LIST
+#     if selected_topics is None:
+#         selected_topics = []
+#
+#     keyboard = []
+#     for i in range(0, len(topics), 2):
+#         row = []
+#         # Первая тема в ряду
+#         topic1_text = f"✅ {topics[i]}" if i + 1 in selected_topics else topics[i]
+#         row.append(InlineKeyboardButton(text=topic1_text, callback_data=f"topic_{i + 1}"))
+#
+#         # Вторая тема в ряду (если есть)
+#         if i + 1 < len(topics):
+#             topic2_text = f"✅ {topics[i + 1]}" if i + 2 in selected_topics else topics[i + 1]
+#             row.append(InlineKeyboardButton(text=topic2_text, callback_data=f"topic_{i + 2}"))
+#
+#         keyboard.append(row)
+#
+#     # Кнопки действий
+#     keyboard.append([InlineKeyboardButton(text="✅ Сохранить", callback_data="topics_save")])
+#     keyboard.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="topics_back")])
+#
+#     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 def get_topics_keyboard(selected_topics=None):
-    topics = TOPICS_LIST
     if selected_topics is None:
         selected_topics = []
 
+    # Список из 36 тем
+    topics = TOPICS_LIST
+
     keyboard = []
-    for i in range(0, len(topics), 2):
-        row = []
-        # Первая тема в ряду
-        topic1_text = f"✅ {topics[i]}" if i + 1 in selected_topics else topics[i]
-        row.append(InlineKeyboardButton(text=topic1_text, callback_data=f"topic_{i + 1}"))
 
-        # Вторая тема в ряду (если есть)
-        if i + 1 < len(topics):
-            topic2_text = f"✅ {topics[i + 1]}" if i + 2 in selected_topics else topics[i + 1]
-            row.append(InlineKeyboardButton(text=topic2_text, callback_data=f"topic_{i + 2}"))
+    # Разбиваем на 3 столбца по 12 тем в каждом
+    topics_per_column = 12
+    total_columns = 3
 
-        keyboard.append(row)
+    # Создаем строки для каждого столбца
+    for row in range(topics_per_column):
+        keyboard_row = []
+        for col in range(total_columns):
+            topic_index = col * topics_per_column + row
+            if topic_index < len(topics):
+                topic_idx = topic_index + 1
+                topic_text = topics[topic_index]
+
+                # Сокращаем длинные названия
+                if len(topic_text) > 10:
+                    topic_text = topic_text.split(' ')[0]  # Берем только первое слово
+
+                indicator = "✅ " if topic_idx in selected_topics else ""
+                btn_text = f"{indicator}{topic_text}"
+
+                keyboard_row.append(InlineKeyboardButton(
+                    text=btn_text,
+                    callback_data=f"topic_{topic_idx}"
+                ))
+
+        if keyboard_row:  # Добавляем только непустые строки
+            keyboard.append(keyboard_row)
 
     # Кнопки действий
-    keyboard.append([InlineKeyboardButton(text="✅ Сохранить", callback_data="topics_save")])
-    keyboard.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="topics_back")])
+    keyboard.append([InlineKeyboardButton(text="💾 Сохранить выбранное", callback_data="topics_save")])
+    keyboard.append([InlineKeyboardButton(text="🗑️ Очистить все", callback_data="topics_clear")])
+    keyboard.append([InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="topics_back")])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
