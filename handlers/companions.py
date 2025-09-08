@@ -32,7 +32,7 @@ class IsReportReason(BaseFilter):
     """Фильтр сообщений от нажатия кнопки в которых содержатся исключительно цифры."""
 
     async def __call__(self, callback: CallbackQuery) -> bool:
-        if callback.data in ("report_spam", "report_content", "report_scam", "report_other"):
+        if callback.data in ("report_spam", "report_content", "report_scam", "report_other", "report_cancel"):
             return True
         return False
 
