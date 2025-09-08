@@ -486,10 +486,7 @@ async def process_report_reason(callback: CallbackQuery, state: FSMContext):
         await state.clear()
 
     elif report_reason == "report_cancel":
-        data = await state.get_data()
-        companion_id = data.get('reported_companion_id')
-        await back_to_profile_handler(callback)
-        await state.clear()
+        await callback.message.delete()
 
 
 @router.callback_query(F.data.startswith("companions_cancel"))
