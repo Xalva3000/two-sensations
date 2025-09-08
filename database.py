@@ -109,6 +109,20 @@ class Database:
                 )
             ''')
 
+            # Таблица жалоб
+            await connection.execute('''
+                CREATE TABLE IF NOT EXISTS reports (
+                    id BIGSERIAL PRIMARY KEY,
+                    reporter_id BIGINT REFERENCES seekers(telegram_id),
+                    reported_id BIGINT REFERENCES seekers(telegram_id),
+                    reason VARCHAR(100),
+                    status VARCHAR(20) DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP,
+                    UNIQUE(reporter_id, reported_id)
+                )
+            ''')
+
     async def add_user(self, telegram_id, username, first_name):
         async with self.pool.acquire() as connection:
             return await connection.fetchrow('''
@@ -185,8 +199,9 @@ class Database:
             current_user = dict(current_user)
             current_seeker_id = current_user['telegram_id']
 
-            # Получаем темы текущего пользователя
+            # Получаем темы текущего пользователя через TopicsMask
             current_topics = await self.get_user_topics(current_seeker_id)
+
             # Строим сложный запрос для поиска подходящего собеседника
             query = '''
                 SELECT 
@@ -206,7 +221,7 @@ class Database:
                             WHERE seeker_id = $1
                     )
             '''
-            params = [current_user_id,]
+            params = [current_user_id, ]
             param_count = 2
 
             # 2. По противоположности пола
@@ -240,12 +255,16 @@ class Database:
 
             # 1. По полному соответствию тем (если есть выбранные темы)
             if current_topics:
-                topic_conditions = []
-                for topic_num in current_topics:
-                    topic_conditions.append(f"t.word_{topic_num} = TRUE")
+                # Используем битовую маску для проверки тем
+                # Создаем маску для поиска - все выбранные темы должны быть установлены
+                search_mask = TopicsMask()
+                search_mask.set_from_list(current_topics)
+                mask_value = search_mask.to_int()
 
-                if topic_conditions:
-                    query += f" AND ({' AND '.join(topic_conditions)})"
+                # Проверяем, что все биты из маски поиска установлены в маске пользователя
+                query += f" AND (t.topics_mask & ${param_count}) = ${param_count}"
+                params.append(mask_value)
+                param_count += 1
 
             query += " ORDER BY RANDOM() LIMIT 1"
 
@@ -257,6 +276,96 @@ class Database:
                 return user
 
             return None
+
+    # async def get_random_user(self, current_user_id):
+    #     async with self.pool.acquire() as connection:
+    #         # Получаем данные текущего пользователя
+    #         current_user = await connection.fetchrow('''
+    #             SELECT
+    #                 s.*, p.is_seekable, p.city, p.is_city_only, p.is_photo_required
+    #             FROM
+    #                 seekers s
+    #                 LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
+    #             WHERE s.telegram_id = $1
+    #         ''', current_user_id)
+    #         if not current_user:
+    #             return None
+    #
+    #         current_user = dict(current_user)
+    #         current_seeker_id = current_user['telegram_id']
+    #
+    #         # Получаем темы текущего пользователя
+    #         current_topics = await self.get_user_topics(current_seeker_id)
+    #         # Строим сложный запрос для поиска подходящего собеседника
+    #         query = '''
+    #             SELECT
+    #                 s.*, p.city, p.is_city_only
+    #             FROM
+    #                 seekers s
+    #                 LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
+    #                 LEFT JOIN topics t ON s.telegram_id = t.seeker_id
+    #             WHERE
+    #                 s.telegram_id != $1
+    #                 AND s.is_active = TRUE
+    #                 AND s.income_companion_telegram_id IS NULL
+    #                 AND p.is_seekable = TRUE
+    #                 AND s.telegram_id NOT IN (
+    #                         SELECT rejected_seeker_id
+    #                         FROM rejections
+    #                         WHERE seeker_id = $1
+    #                 )
+    #         '''
+    #         params = [current_user_id,]
+    #         param_count = 2
+    #
+    #         # 2. По противоположности пола
+    #         if current_user['gender']:
+    #             opposite_gender = 2 if current_user['gender'] == 1 else 1
+    #             query += f" AND s.gender = ${param_count}"
+    #             params.append(opposite_gender)
+    #             param_count += 1
+    #
+    #         # 3. Возраст подходит
+    #         if current_user['interested_age']:
+    #             query += f" AND s.interested_age = ${param_count}"
+    #             params.append(current_user['age'])
+    #             param_count += 1
+    #
+    #         # 4. Возраст пользователя соответствует пожеланиям собеседника
+    #         if current_user['age']:
+    #             query += f" AND s.age = ${param_count}"
+    #             params.append(current_user['interested_age'])
+    #             param_count += 1
+    #
+    #         # 5. По городу (если включена настройка)
+    #         if current_user.get('is_city_only') and current_user.get('city'):
+    #             query += f" AND p.city = ${param_count}"
+    #             params.append(current_user['city'])
+    #             param_count += 1
+    #
+    #         # 7. Только с фото (если включена настройка)
+    #         if current_user.get('is_photo_required'):
+    #             query += f" AND p.photo_id IS NOT NULL AND p.is_photo_confirmed = TRUE"
+    #
+    #         # 1. По полному соответствию тем (если есть выбранные темы)
+    #         if current_topics:
+    #             topic_conditions = []
+    #             for topic_num in current_topics:
+    #                 topic_conditions.append(f"t.word_{topic_num} = TRUE")
+    #
+    #             if topic_conditions:
+    #                 query += f" AND ({' AND '.join(topic_conditions)})"
+    #
+    #         query += " ORDER BY RANDOM() LIMIT 1"
+    #
+    #         result = await connection.fetchrow(query, *params)
+    #         if result:
+    #             user = dict(result)
+    #             user['topics'] = await self.get_user_topics(user['telegram_id'])
+    #             user['photo_id'] = await self.get_user_photo(user['telegram_id'])
+    #             return user
+    #
+    #         return None
 
     # async def get_user_topics(self, seeker_id):
     #     async with self.pool.acquire() as connection:
@@ -396,15 +505,43 @@ class Database:
                 UPDATE preferences SET about = $1 WHERE seeker_id = $2
             ''', about_me, telegram_id)
 
+    # async def get_companion_info(self, companion_telegram_id):
+    #     async with self.pool.acquire() as connection:
+    #         return await connection.fetchrow('''
+    #             SELECT
+    #                 s.*, p.city, p.photo_id
+    #             FROM seekers s
+    #             LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
+    #             WHERE s.telegram_id = $1
+    #         ''', companion_telegram_id)
+
     async def get_companion_info(self, companion_telegram_id):
         async with self.pool.acquire() as connection:
-            return await connection.fetchrow('''
+            # Получаем основную информацию о пользователе
+            companion = await connection.fetchrow('''
                 SELECT 
-                    s.*, p.city, p.photo_id
+                    s.*, p.city, p.photo_id, p.is_photo_confirmed,
+                    t.topics_mask
                 FROM seekers s
                 LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
+                LEFT JOIN topics t ON s.telegram_id = t.seeker_id
                 WHERE s.telegram_id = $1
             ''', companion_telegram_id)
+
+            if companion:
+                # Преобразуем результат в dict и добавляем расшифрованные темы
+                companion_dict = dict(companion)
+
+                # Расшифровываем темы из битовой маски
+                if companion_dict.get('topics_mask') is not None:
+                    topics_mask = TopicsMask().from_int(companion_dict['topics_mask'])
+                    companion_dict['topics'] = topics_mask.get_all_topics()
+                else:
+                    companion_dict['topics'] = []
+
+                return companion_dict
+
+            return None
 
     async def decrease_balance(self, telegram_id):
         async with self.pool.acquire() as connection:
@@ -504,5 +641,24 @@ class Database:
                 ON CONFLICT (seeker_id) DO UPDATE 
                 SET topics_mask = $2
             ''', seeker_id, topics_mask.to_int())
+
+    async def save_report(self, reporter_id, reported_id, reason):
+        """Сохраняет жалобу на пользователя"""
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                INSERT INTO reports (reporter_id, reported_id, reason, status)
+                VALUES ($1, $2, $3, 'pending')
+                ON CONFLICT (reporter_id, reported_id) DO UPDATE
+                SET reason = $3, created_at = NOW()
+            ''', reporter_id, reported_id, reason)
+
+    async def get_reports_count(self, user_id):
+        """Получает количество жалоб на пользователя"""
+        async with self.pool.acquire() as connection:
+            return await connection.fetchval('''
+                SELECT COUNT(*) FROM reports WHERE reported_id = $1
+            ''', user_id)
+
+
 
 db = Database()

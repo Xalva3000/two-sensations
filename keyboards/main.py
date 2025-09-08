@@ -68,6 +68,9 @@ def get_profile_action_keyboard(suggestion_id):
             InlineKeyboardButton(text="✅ Принять", callback_data=f"accept_outer_profile_{suggestion_id}"),
             InlineKeyboardButton(text="❌ Отклонить", callback_data=f"reject_profile_{suggestion_id}"),
         ],
+        [
+            InlineKeyboardButton(text="Закрыть", callback_data=f"companions_cancel"),
+        ],
     ])
 
 
@@ -172,12 +175,12 @@ def get_companions_menu_keyboard():
             [InlineKeyboardButton(
                 text="👤 Тот, кто меня нашел",
                 callback_data="menu_view_income_companion")],
-            [InlineKeyboardButton(
-                text="❌ Удалить найденного собеседника",
-                callback_data="settings_remove_outer_companion")],
-            [InlineKeyboardButton(
-                text="❌ Удалить нашедшего собеседника",
-                callback_data="settings_remove_income_companion")],
+            # [InlineKeyboardButton(
+            #     text="❌ Удалить найденного собеседника",
+            #     callback_data="settings_remove_outer_companion")],
+            # [InlineKeyboardButton(
+            #     text="❌ Удалить нашедшего собеседника",
+            #     callback_data="settings_remove_income_companion")],
             [InlineKeyboardButton(
                 text="⬅️ Назад",
                 callback_data="companions_back")]
