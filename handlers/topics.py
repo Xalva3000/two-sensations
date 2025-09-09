@@ -16,8 +16,8 @@ class TopicsState(StatesGroup):
 @router.callback_query(F.data == "menu_topics")
 async def menu_topics(callback: CallbackQuery):
     await callback.message.edit_text(
-        "🎭 Управление темами для общения:\n\n"
-        "Выберите темы, которые вам интересны. Это поможет найти подходящего собеседника.",
+        "🎭 Управление алгоритмом поиска:\n\n"
+        "Выберите любимые ощущения. Это поможет найти подходящего собеседника.",
         reply_markup=get_topics_menu_keyboard()
     )
 
@@ -37,14 +37,22 @@ async def topics_edit(callback: CallbackQuery, state: FSMContext):
     selected_topics = await db.get_user_topics(seeker_id)
 
     await callback.message.edit_text(
-        "🎯 Выберите интересующие темы (можно выбрать несколько):\n\n"
-        "✅ - тема выбрана\n"
-        "Нажмите на тему, чтобы выбрать/отменить выбор\n\n"
-        f"Выбрано тем: {len(selected_topics)}/36",
+        "🎯 Выберите любимые ощущения (можно выбрать несколько):\n\n"
+        "✅ - ощущение выбрано\n"
+        "Нажмите на слово, чтобы выбрать/отменить выбор\n\n"
+        f"Выбрано ощущений: {len(selected_topics)}/36",
         reply_markup=get_topics_keyboard(selected_topics)
     )
     await state.set_state(TopicsState.editing_topics)
     await state.update_data(selected_topics=selected_topics)
+
+@router.callback_query(F.data == "registration_topics_clear")
+async def topics_clear(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(selected_topics=[])
+    await callback.message.edit_reply_markup(
+        reply_markup=get_topics_keyboard([], is_registration=True)
+    )
+    await callback.answer("Выбор сброшен")
 
 @router.callback_query(F.data == "topics_clear")
 async def topics_clear(callback: CallbackQuery, state: FSMContext):
@@ -52,7 +60,7 @@ async def topics_clear(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_reply_markup(
         reply_markup=get_topics_keyboard([])
     )
-    await callback.answer("Все темы очищены")
+    await callback.answer("Выбор сброшен")
 
 # @router.callback_query(TopicsState.editing_topics, F.data.startswith("topic_"))
 # async def process_topic_selection(callback: CallbackQuery, state: FSMContext):
@@ -86,10 +94,10 @@ async def process_topic_selection(callback: CallbackQuery, state: FSMContext):
     # Добавляем или удаляем тему
     if topic_index in selected_topics:
         selected_topics.remove(topic_index)
-        action = "удалена"
+        action = "удалено"
     else:
         selected_topics.append(topic_index)
-        action = "добавлена"
+        action = "добавлено"
 
     await state.update_data(selected_topics=selected_topics)
 
@@ -97,7 +105,7 @@ async def process_topic_selection(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_reply_markup(
         reply_markup=get_topics_keyboard(selected_topics)
     )
-    await callback.answer(f"Тема {action}")
+    await callback.answer(f"Ощущение {action}")
 
 # @router.callback_query(TopicsState.editing_topics, F.data == "topics_save")
 # async def topics_save(callback: CallbackQuery, state: FSMContext):
@@ -128,7 +136,7 @@ async def topics_save(callback: CallbackQuery, state: FSMContext):
     await db.set_user_topics(seeker_id, selected_topics)
 
     await callback.message.edit_text(
-        f"✅ Темы сохранены! Выбрано тем: {len(selected_topics)}",
+        f"✅ Ощущения сохранены! Количество: {len(selected_topics)}",
         reply_markup=get_topics_menu_keyboard()
     )
     await state.clear()
@@ -137,7 +145,7 @@ async def topics_save(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(TopicsState.editing_topics, F.data == "topics_back")
 async def topics_back(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        "🎭 Управление темами для общения:",
+        "🎭 Выбор любимых ощущений для алгоритма поиска:",
         reply_markup=get_topics_menu_keyboard()
     )
     await state.clear()

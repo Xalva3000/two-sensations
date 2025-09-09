@@ -28,19 +28,18 @@ class Database:
                     username VARCHAR(100),
                     first_name VARCHAR(100),
                     balance SMALLINT DEFAULT 100 NOT NULL,
-                    language SMALLINT DEFAULT 1,
                     gender SMALLINT,
                     age SMALLINT,
                     interested_age SMALLINT,
                     is_active BOOLEAN DEFAULT TRUE NOT NULL,
                     created_at TIMESTAMP DEFAULT NOW()
                 )
-            ''')
+            ''') # language SMALLINT DEFAULT 1,
 
             # Таблица доп.информации
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS preferences (
-                    seeker_id BIGINT PRIMARY KEY REFERENCES seekers(telegram_id),
+                    seeker_id BIGINT PRIMARY KEY REFERENCES seekers(telegram_id) ON DELETE CASCADE,
                     about VARCHAR(250),
                     city VARCHAR(100),
                     is_city_only BOOLEAN DEFAULT FALSE NOT NULL,
@@ -80,7 +79,7 @@ class Database:
 
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS topics (
-                    seeker_id BIGINT PRIMARY KEY REFERENCES seekers(telegram_id),
+                    seeker_id BIGINT PRIMARY KEY REFERENCES seekers(telegram_id) ON DELETE CASCADE,
                     topics_mask BIGINT DEFAULT 0 NOT NULL
                 )
             ''')
@@ -89,8 +88,8 @@ class Database:
             # Таблица отклоненных анкет
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS rejections (
-                    seeker_id BIGINT REFERENCES seekers(telegram_id),
-                    rejected_seeker_id BIGINT REFERENCES seekers(telegram_id),
+                    seeker_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE,
+                    rejected_seeker_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE, 
                     created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(seeker_id, rejected_seeker_id)
                 )
@@ -100,8 +99,8 @@ class Database:
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS connection_requests (
                     id BIGSERIAL PRIMARY KEY,
-                    from_user_id BIGINT REFERENCES seekers(telegram_id),
-                    to_user_id BIGINT REFERENCES seekers(telegram_id),
+                    from_user_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE,
+                    to_user_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE,
                     status VARCHAR(20) DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT NOW(),
                     responded_at TIMESTAMP,
@@ -113,8 +112,8 @@ class Database:
             await connection.execute('''
                 CREATE TABLE IF NOT EXISTS reports (
                     id BIGSERIAL PRIMARY KEY,
-                    reporter_id BIGINT REFERENCES seekers(telegram_id),
-                    reported_id BIGINT REFERENCES seekers(telegram_id),
+                    reporter_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE,
+                    reported_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE,
                     reason VARCHAR(100),
                     status VARCHAR(20) DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT NOW(),

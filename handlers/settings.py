@@ -13,7 +13,7 @@ from keyboards.main import (
     get_settings_keyboard,
     get_boolean_choice_keyboard,
     get_main_menu_keyboard,
-    get_language_keyboard,
+    get_gender_keyboard,
 )
 from handlers.start import RegistrationStates
 
@@ -30,10 +30,10 @@ class SettingsState(StatesGroup):
 @router.callback_query(F.data == "settings_restart_profile")
 async def settings_restart_profile(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        "Выберите язык:",
-        reply_markup=get_language_keyboard()
+        "Выберите пол:",
+        reply_markup=get_gender_keyboard()
     )
-    await state.set_state(RegistrationStates.waiting_for_language)
+    await state.set_state(RegistrationStates.waiting_for_gender)
 
 
 @router.callback_query(F.data == "settings_import_contact")

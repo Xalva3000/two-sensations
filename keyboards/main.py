@@ -1,12 +1,12 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from LEXICON import TOPICS_LIST
 
-
-def get_language_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Русский 🇷🇺", callback_data="lang_1")],
-        [InlineKeyboardButton(text="English 🇺🇸", callback_data="lang_2")]
-    ])
+#
+# def get_language_keyboard():
+#     return InlineKeyboardMarkup(inline_keyboard=[
+#         [InlineKeyboardButton(text="Русский 🇷🇺", callback_data="lang_1")],
+#         [InlineKeyboardButton(text="English 🇺🇸", callback_data="lang_2")]
+#     ])
 
 def get_gender_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -43,7 +43,7 @@ def get_interested_age_keyboard():
 def get_main_menu_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="👤 Мой профиль", callback_data="menu_view_profile")],
-        [InlineKeyboardButton(text="🎭 Темы для общения", callback_data="menu_topics")],
+        [InlineKeyboardButton(text="🎭 Выбрать ощущения", callback_data="menu_topics")],
         [InlineKeyboardButton(text="👥 Мои собеседники", callback_data="menu_companions")],
         [InlineKeyboardButton(text="⚙️ Настройки", callback_data="menu_settings")],
         [InlineKeyboardButton(text="🔍 Найти собеседника", callback_data="menu_search")]
@@ -99,7 +99,7 @@ def get_profile_action_keyboard(suggestion_id):
 #
 #     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_topics_keyboard(selected_topics=None):
+def get_topics_keyboard(selected_topics=None, is_registration=False):
     if selected_topics is None:
         selected_topics = []
 
@@ -138,15 +138,19 @@ def get_topics_keyboard(selected_topics=None):
 
     # Кнопки действий
     keyboard.append([InlineKeyboardButton(text="💾 Сохранить выбранное", callback_data="topics_save")])
-    keyboard.append([InlineKeyboardButton(text="🗑️ Очистить все", callback_data="topics_clear")])
-    keyboard.append([InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="topics_back")])
+
+    if not is_registration:
+        keyboard.append([InlineKeyboardButton(text="🗑️ Очистить все", callback_data="topics_clear")])
+        keyboard.append([InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="topics_back")])
+    else:
+        keyboard.append([InlineKeyboardButton(text="🗑️ Очистить все", callback_data="registration_topics_clear")])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 def get_topics_menu_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎭 Выбрать темы", callback_data="topics_edit")],
+        [InlineKeyboardButton(text="🎭 Выбрать ощущения", callback_data="topics_edit")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="topics_back_to_main")]
     ])
 

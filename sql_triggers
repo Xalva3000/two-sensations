@@ -17,6 +17,11 @@ after insert on seekers
 for each row
 execute function create_seeker_preferences();
 
+create trigger after_seeker_insert
+after insert on seekers
+for each row
+execute function create_seeker_preferences();
+
 
 insert into seekers (telegram_id, username, first_name, language, gender, age, interested_age, is_active)
 select telegram_id + 1, username || 'a', first_name || 'a', language, gender, age, interested_age, is_active
@@ -29,6 +34,10 @@ from seekers s1 order by telegram_id asc limit 1;
 insert into seekers (telegram_id, username, first_name, language, gender, age, interested_age, is_active)
 select telegram_id + 3, username || 'a', first_name || 'a', language, gender, age, interested_age, is_active
 from seekers s1 order by telegram_id asc limit 1;
+
+SELECT 'DROP TABLE IF EXISTS "' || tablename || '" CASCADE;'
+FROM pg_tables
+WHERE schemaname = 'public';
 
 
 cyrillic-250-length

@@ -26,13 +26,12 @@ async def view_my_profile(callback: CallbackQuery):
     # Получаем темы пользователя
     topics = await db.get_user_topics(callback.from_user.id)
     topics_text = ", ".join([TOPICS_LIST[i - 1] for i in topics]) if topics else "Не выбраны"
-
     profile_text = (
         f"👤 Ваш профиль:\n\n"
         f"📝 Имя: {user['first_name']}\n"
         f"🎂 Возраст: {age_groups.get(user['age'], 'Не указан')}\n"
         f"👫 Пол: {'Мужской' if user['gender'] == 1 else 'Женский'}\n"
-        f"🏙️ Город: {user.get('city', 'Не указан')}\n"
+        f"🏙️ Город: {user.get('city', 'Не указан') or 'Не указан'}\n"
         f"🎯 Интересует возраст: {age_groups.get(user['interested_age'], 'Любой')}\n"
         f"📚 Темы: {topics_text}\n"
     )
