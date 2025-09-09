@@ -6,6 +6,7 @@ from data_types.topics_mask import TopicsMask
 class Database:
     def __init__(self):
         self.pool = None
+        self.admins = config.ADMINS
 
     async def create_pool(self):
         self.pool = await asyncpg.create_pool(
@@ -15,6 +16,7 @@ class Database:
             user=config.DB_USER,
             password=config.DB_PASSWORD
         )
+
 
     async def create_tables(self):
         async with self.pool.acquire() as connection:
@@ -46,7 +48,8 @@ class Database:
                     is_seekable BOOLEAN DEFAULT TRUE NOT NULL,
                     photo_id varchar(200),
                     is_photo_confirmed BOOLEAN DEFAULT FALSE NOT NULL,
-                    is_photo_required BOOLEAN DEFAULT FALSE NOT NULL
+                    is_photo_required BOOLEAN DEFAULT FALSE NOT NULL,
+                    updated_at TIMESTAMP DEFAULT NOW()
                 )
             ''')
 
@@ -410,7 +413,7 @@ class Database:
             await connection.execute('''
                 UPDATE preferences 
                     SET photo_id = $2,
-                    is_photo_confirmed = TRUE 
+                    is_photo_confirmed = FALSE 
                 WHERE seeker_id = $1
             ''', seeker_id, photo)
 
@@ -658,6 +661,48 @@ class Database:
                 SELECT COUNT(*) FROM reports WHERE reported_id = $1
             ''', user_id)
 
+    async def get_unconfirmed_photos(self):
+        """Получает пользователей с неподтвержденными фото"""
+        async with self.pool.acquire() as connection:
+            return await connection.fetch('''
+                SELECT s.telegram_id, s.first_name, p.photo_id, p.seeker_id
+                FROM preferences p
+                JOIN seekers s ON p.seeker_id = s.telegram_id
+                WHERE p.photo_id IS NOT NULL 
+                AND p.is_photo_confirmed = FALSE
+                ORDER BY p.updated_at DESC
+            ''')
 
+    async def confirm_photo(self, seeker_id):
+        """Подтверждает фото пользователя"""
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE preferences 
+                SET is_photo_confirmed = TRUE 
+                WHERE seeker_id = $1
+            ''', seeker_id)
+
+    async def reject_photo(self, seeker_id):
+        """Отклоняет фото пользователя и удаляет его"""
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE preferences 
+                SET photo_id = NULL, is_photo_confirmed = FALSE
+                WHERE seeker_id = $1
+            ''', seeker_id)
+
+    async def count_not_confirmed_photo(self):
+        """Отклоняет фото пользователя и удаляет его"""
+        async with self.pool.acquire() as connection:
+            return await connection.fetchrow('''
+                SELECT COUNT(*) 
+                FROM preferences
+                WHERE is_photo_confirmed = FALSE
+            ''')
+
+    async def is_admin(self, telegram_id):
+        """Проверяет, является ли пользователь администратором"""
+        async with self.pool.acquire() as connection:
+            return telegram_id in self.admins
 
 db = Database()
