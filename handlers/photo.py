@@ -59,3 +59,12 @@ async def photo_cancel(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_main_menu_keyboard()
     )
     await state.clear()
+
+@router.callback_query(F.data == "photo_close")
+async def photo_cancel(callback: CallbackQuery, state: FSMContext):
+    try:
+        await state.clear()
+        await callback.message.delete()
+    except Exception as e:
+        print(e)
+

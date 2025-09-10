@@ -165,9 +165,8 @@ def get_boolean_choice_keyboard():
 
 def get_photo_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="⬅️ Отмена", callback_data="photo_cancel"),
-        ],
+        [InlineKeyboardButton(text="⬅️ Отмена", callback_data="photo_cancel")],
+        [InlineKeyboardButton(text="Закрыть", callback_data="photo_close")],
     ])
 
 def get_companions_menu_keyboard():
