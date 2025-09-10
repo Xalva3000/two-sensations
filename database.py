@@ -698,7 +698,7 @@ class Database:
                 SELECT COUNT(*) 
                 FROM preferences
                 WHERE 
-                    photo_id IS NOT NULL
+                    photo_id IS NOT NULL,
                     is_photo_confirmed = FALSE
             ''')
 
