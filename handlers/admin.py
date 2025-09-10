@@ -64,18 +64,16 @@ async def moderate_photos(callback: CallbackQuery):
         await callback.answer("❌ Доступ запрещен")
         return
 
-    unconfirmed_photos = await db.get_unconfirmed_photos()
+    unconfirmed_photo = await db.get_unconfirmed_photos()
 
-    if not unconfirmed_photos:
-        await callback.message.edit_text(
-            "✅ Нет фото для модерации!\n\n"
-            "Все фото проверены.",
-            reply_markup=get_admin_keyboard()
+    if not unconfirmed_photo:
+        await callback.answer(
+            "✅ Нет фото для модерации!"
         )
         return
 
     # Берем первое фото из списка
-    photo_data = unconfirmed_photos[0]
+    photo_data = unconfirmed_photo
     seeker_id = photo_data['seeker_id']
 
     caption = (

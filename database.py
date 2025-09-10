@@ -664,13 +664,14 @@ class Database:
     async def get_unconfirmed_photos(self):
         """Получает пользователей с неподтвержденными фото"""
         async with self.pool.acquire() as connection:
-            return await connection.fetch('''
+            return await connection.fetchrow('''
                 SELECT s.telegram_id, s.first_name, p.photo_id, p.seeker_id
                 FROM preferences p
                 JOIN seekers s ON p.seeker_id = s.telegram_id
                 WHERE p.photo_id IS NOT NULL 
                 AND p.is_photo_confirmed = FALSE
                 ORDER BY p.updated_at DESC
+                LIMIT 1
             ''')
 
     async def confirm_photo(self, seeker_id):
