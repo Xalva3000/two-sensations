@@ -697,7 +697,9 @@ class Database:
             return await connection.fetchrow('''
                 SELECT COUNT(*) 
                 FROM preferences
-                WHERE is_photo_confirmed = FALSE
+                WHERE 
+                    photo_id IS NOT NULL
+                    is_photo_confirmed = FALSE
             ''')
 
     async def is_admin(self, telegram_id):
