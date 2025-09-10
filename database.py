@@ -698,8 +698,8 @@ class Database:
                 SELECT COUNT(*) 
                 FROM preferences
                 WHERE 
-                    photo_id IS NOT NULL,
-                    is_photo_confirmed = FALSE
+                    photo_id IS NOT NULL
+                    AND is_photo_confirmed = FALSE
             ''')
 
     async def is_admin(self, telegram_id):
