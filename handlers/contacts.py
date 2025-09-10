@@ -1,9 +1,11 @@
 from aiogram import Router, F
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from LEXICON.numbers import age_groups
 from database import db
 from keyboards.connection_keyboards import get_connection_response_keyboard, get_connection_request_keyboard
+from keyboards.main import get_settings_keyboard
 
 router = Router()
 
@@ -13,9 +15,6 @@ async def accept_outer_profile(callback: CallbackQuery):
     user_id = callback.from_user.id
     # получение id принятого собеседника
     new_companion_id = int(callback.data.replace('accept_outer_profile_', ''))
-
-    # Создаем запрос на соединение
-    await db.create_connection_request(user_id, new_companion_id)
 
     # Получаем информацию о пользователях
     user_info = await db.get_user(user_id)
@@ -51,9 +50,6 @@ async def accept_outer_profile(callback: CallbackQuery):
 async def accept_connection_request(callback: CallbackQuery):
     from_user_id = int(callback.data.replace('accept_request_', ''))
     to_user_id = callback.from_user.id
-
-    # Обновляем статус запроса
-    await db.update_connection_request(from_user_id, to_user_id, 'accepted')
 
     # Устанавливаем соединение
     await db.set_outer_companion(from_user_id, to_user_id)
@@ -93,9 +89,6 @@ async def reject_connection_request(callback: CallbackQuery):
     from_user_id = int(callback.data.replace('reject_request_', ''))
     to_user_id = callback.from_user.id
 
-    # Обновляем статус запроса
-    await db.update_connection_request(from_user_id, to_user_id, 'rejected')
-
     # Получаем информацию о пользователе
     to_user_info = await db.get_user(to_user_id)
 
@@ -117,24 +110,100 @@ async def reject_connection_request(callback: CallbackQuery):
     )
 
 
+@router.callback_query(F.data.startswith("remove_"))
+async def remove_companion_handler(callback: CallbackQuery, state: FSMContext):
+    data_parts = callback.data.split('_')
+    companion_type = data_parts[1]
+    companion_id = int(data_parts[2])
+    user_id = callback.from_user.id
+
+    # Удаляем companion
+    if companion_type == "outer":
+        await db.remove_outer_mutual_connection(user_id, companion_id)
+    else:
+        await db.remove_income_mutual_connection(user_id, companion_id)
+
+    # Удаляем взаимность
+    # await db.remove_mutual_connection(user_id, companion_id)
+
+    # Уведомляем companion о разрыве связи
+    try:
+        companion_user = await db.get_user(companion_id)
+        if companion_user:
+            await callback.bot.send_message(
+                companion_id,
+                f"❌ {callback.from_user.first_name} очищен из контактов по его инициативе.\n\n"
+                f"Вы можете искать нового собеседника."
+            )
+    except Exception as e:
+        print(f"Ошибка уведомления companion: {e}")
+
+    await callback.answer("✅ Собеседник удален")
+    await callback.message.edit_text(
+        "✅ Собеседник удален из вашего профиля",
+        reply_markup=get_settings_keyboard()
+    )
+
+# @router.callback_query(F.data.startswith("accept_outer_profile_"))
+# async def accept_outer_profile(callback: CallbackQuery):
+#     user_id = callback.from_user.id
+#     new_companion_id = int(callback.data.replace('accept_outer_profile_', ''))
+#
+#     # Проверяем, не отправляли ли уже запрос
+#     existing_request = await db.get_connection_request(user_id, new_companion_id)
+#     if existing_request and existing_request['status'] == 'pending':
+#         await callback.answer("⏳ Запрос уже отправлен, ждем ответа")
+#         return
+#
+#     if existing_request and existing_request['status'] == 'accepted':
+#         await callback.answer("✅ Соединение уже установлено")
+#         return
+#
+#     if existing_request and existing_request['status'] == 'rejected':
+#         await callback.answer("❌ Запрос был отклонен ранее")
+#         return
+
+
 @router.callback_query(F.data.startswith("accept_outer_profile_"))
 async def accept_outer_profile(callback: CallbackQuery):
     user_id = callback.from_user.id
-    new_companion_id = int(callback.data.replace('accept_outer_profile_', ''))
+    companion_id = int(callback.data.replace('accept_outer_profile_', ''))
 
-    # Проверяем, не отправляли ли уже запрос
-    existing_request = await db.get_connection_request(user_id, new_companion_id)
-    if existing_request and existing_request['status'] == 'pending':
-        await callback.answer("⏳ Запрос уже отправлен, ждем ответа")
-        return
+    # Устанавливаем связь
+    await db.set_outer_companion(user_id, companion_id)
+    await db.set_income_companion(companion_id, user_id)
 
-    if existing_request and existing_request['status'] == 'accepted':
-        await callback.answer("✅ Соединение уже установлено")
-        return
+    # Устанавливаем взаимность
+    await db.set_mutual_connection(user_id, companion_id, "outer")
 
-    if existing_request and existing_request['status'] == 'rejected':
-        await callback.answer("❌ Запрос был отклонен ранее")
-        return
+    # Получаем информацию для уведомлений
+    user_info = await db.get_user(user_id)
+    companion_info = await db.get_user(companion_id)
+
+    # Уведомляем инициатора
+    try:
+        await callback.bot.send_message(
+            user_id,
+            f"🎉 Ваш запрос принят! {companion_info['first_name']} согласился на общение.\n\n"
+            f"💌 Контакт: @{companion_info.get('username', 'username_not_set')}"
+        )
+    except Exception as e:
+        print(f"Ошибка уведомления пользователя {user_id}: {e}")
+
+    # Уведомляем companion
+    try:
+        await callback.bot.send_message(
+            companion_id,
+            f"💌 Вы приняли запрос от {user_info['first_name']}!\n\n"
+            f"Контакт: @{user_info.get('username', 'username_not_set')}"
+        )
+    except Exception as e:
+        print(f"Ошибка уведомления companion {companion_id}: {e}")
+
+    await callback.answer("✅ Соединение установлено!")
+    await callback.message.delete()
+
+
 
 @router.callback_query(F.data == "connection_cancel")
 async def back_to_companions(callback: CallbackQuery):

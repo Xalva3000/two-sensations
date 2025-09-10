@@ -151,7 +151,7 @@ async def show_companion_profile(callback: CallbackQuery, companion, companion_t
             return
 
         # Форматируем текст профиля
-        profile_text = format_companion_profile(companion)
+        profile_text = format_companion_profile(companion, companion_type)
 
         # Получаем клавиатуру
         keyboard = get_companion_action_keyboard(companion['telegram_id'], companion_type)
@@ -164,8 +164,18 @@ async def show_companion_profile(callback: CallbackQuery, companion, companion_t
         await callback.answer("❌ Ошибка загрузки профиля")
 
 
-def format_companion_profile(companion):
+def format_companion_profile(companion, companion_type):
     """Форматирует текст профиля собеседника"""
+
+    is_mutual = False
+    if companion_type == "outer":
+        is_mutual = companion.get('outer_companion_mutual', False)
+    else:
+        is_mutual = companion.get('income_companion_mutual', False)
+
+    # Добавляем статус взаимности в профиль
+    mutual_status = "✅ Взаимная связь" if is_mutual else "⚪ Ожидает подтверждения"
+
     # Базовая информация
     text = (
         f"👤 Профиль собеседника:\n\n"
@@ -173,6 +183,7 @@ def format_companion_profile(companion):
         f"🎂 Возраст: {age_groups.get(companion.get('age'), 'Не указан')}\n"
         f"👫 Пол: {get_gender_text(companion.get('gender'))}\n"
         f"🏙️ Город: {companion.get('city', 'Не указан')}\n"
+        f"🔗 Статус: {mutual_status}\n"
     )
 
     # Темы

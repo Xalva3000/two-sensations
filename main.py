@@ -14,7 +14,7 @@ from handlers.profile import router as profile_router
 from handlers.companions import router as companions_router
 from handlers.contacts import router as contacts_router
 from handlers.admin import router as admin_router
-
+from keyboards.commands_menu import set_main_menu
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,6 +27,9 @@ async def main():
     # Инициализация бота
     bot = Bot(token=config.BOT_TOKEN)
     dp = Dispatcher()
+
+    # установка нижнего меню команд
+    await set_main_menu(bot)
 
     # Регистрация роутеров
     dp.include_router(admin_router)
@@ -48,4 +51,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        print("Bot stopped")

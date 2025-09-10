@@ -26,7 +26,9 @@ class Database:
                     id BIGSERIAL PRIMARY KEY,
                     telegram_id BIGINT UNIQUE NOT NULL,
                     outer_companion_telegram_id BIGINT,
+                    outer_companion_mutual BOOLEAN DEFAULT FALSE NOT NULL,
                     income_companion_telegram_id BIGINT,
+                    income_companion_mutual BOOLEAN DEFAULT FALSE NOT NULL,
                     username VARCHAR(100),
                     first_name VARCHAR(100),
                     balance SMALLINT DEFAULT 100 NOT NULL,
@@ -99,17 +101,17 @@ class Database:
             ''')
 
             # Таблица запросов на обмен контактами
-            await connection.execute('''
-                CREATE TABLE IF NOT EXISTS connection_requests (
-                    id BIGSERIAL PRIMARY KEY,
-                    from_user_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE,
-                    to_user_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE,
-                    status VARCHAR(20) DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    responded_at TIMESTAMP,
-                    UNIQUE(from_user_id, to_user_id)
-                )
-            ''')
+            # await connection.execute('''
+            #     CREATE TABLE IF NOT EXISTS connection_requests (
+            #         id BIGSERIAL PRIMARY KEY,
+            #         from_user_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE,
+            #         to_user_id BIGINT REFERENCES seekers(telegram_id) ON DELETE CASCADE,
+            #         status VARCHAR(20) DEFAULT 'pending',
+            #         created_at TIMESTAMP DEFAULT NOW(),
+            #         responded_at TIMESTAMP,
+            #         UNIQUE(from_user_id, to_user_id)
+            #     )
+            # ''')
 
             # Таблица жалоб
             await connection.execute('''
@@ -207,7 +209,7 @@ class Database:
             # Строим сложный запрос для поиска подходящего собеседника
             query = '''
                 SELECT 
-                    s.*, p.city, p.is_city_only 
+                    s.*, p.*, t.*
                 FROM 
                     seekers s
                     LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
@@ -273,8 +275,7 @@ class Database:
             result = await connection.fetchrow(query, *params)
             if result:
                 user = dict(result)
-                user['topics'] = await self.get_user_topics(user['telegram_id'])
-                user['photo_id'] = await self.get_user_photo(user['telegram_id'])
+                # user['topics'] = await self.get_user_topics(user['telegram_id'])
                 return user
 
             return None
@@ -489,7 +490,9 @@ class Database:
         async with self.pool.acquire() as connection:
             await connection.execute('''
                 UPDATE seekers 
-                SET outer_companion_telegram_id = $1 
+                SET 
+                    outer_companion_telegram_id = $1,
+                    outer_companion_mutual = TRUE
                 WHERE telegram_id = $2
             ''', new_companion_id, telegram_id)
 
@@ -497,7 +500,9 @@ class Database:
         async with self.pool.acquire() as connection:
             await connection.execute('''
                 UPDATE seekers 
-                SET income_companion_telegram_id = $1 
+                SET 
+                    income_companion_telegram_id = $1,
+                    income_companion_mutual = TRUE
                 WHERE telegram_id = $2
             ''', new_companion_id, telegram_id)
 
@@ -522,7 +527,7 @@ class Database:
             # Получаем основную информацию о пользователе
             companion = await connection.fetchrow('''
                 SELECT 
-                    s.*, p.city, p.photo_id, p.is_photo_confirmed,
+                    s.*, p.*,
                     t.topics_mask
                 FROM seekers s
                 LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
@@ -545,45 +550,45 @@ class Database:
 
             return None
 
-    async def decrease_balance(self, telegram_id):
-        async with self.pool.acquire() as connection:
-            await connection.execute('''
-                UPDATE seekers
-                SET balance = balance - 1
-                WHERE telegram_id = $1
-            ''', telegram_id)
+    # async def decrease_balance(self, telegram_id):
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET balance = balance - 1
+    #             WHERE telegram_id = $1
+    #         ''', telegram_id)
+    #
+    # async def increase_balance(self, telegram_id):
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET balance = balance + 1
+    #             WHERE telegram_id = $1
+    #         ''', telegram_id)
 
-    async def increase_balance(self, telegram_id):
-        async with self.pool.acquire() as connection:
-            await connection.execute('''
-                UPDATE seekers
-                SET balance = balance + 1
-                WHERE telegram_id = $1
-            ''', telegram_id)
+    # async def create_connection_request(self, from_user_id, to_user_id):
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             INSERT INTO connection_requests (from_user_id, to_user_id, status)
+    #             VALUES ($1, $2, 'pending')
+    #             ON CONFLICT (from_user_id, to_user_id) DO UPDATE
+    #             SET status = 'pending', created_at = NOW()
+    #         ''', from_user_id, to_user_id)
 
-    async def create_connection_request(self, from_user_id, to_user_id):
-        async with self.pool.acquire() as connection:
-            await connection.execute('''
-                INSERT INTO connection_requests (from_user_id, to_user_id, status)
-                VALUES ($1, $2, 'pending')
-                ON CONFLICT (from_user_id, to_user_id) DO UPDATE 
-                SET status = 'pending', created_at = NOW()
-            ''', from_user_id, to_user_id)
+    # async def get_connection_request(self, from_user_id, to_user_id):
+    #     async with self.pool.acquire() as connection:
+    #         return await connection.fetchrow('''
+    #             SELECT * FROM connection_requests
+    #             WHERE from_user_id = $1 AND to_user_id = $2
+    #         ''', from_user_id, to_user_id)
 
-    async def get_connection_request(self, from_user_id, to_user_id):
-        async with self.pool.acquire() as connection:
-            return await connection.fetchrow('''
-                SELECT * FROM connection_requests 
-                WHERE from_user_id = $1 AND to_user_id = $2
-            ''', from_user_id, to_user_id)
-
-    async def update_connection_request(self, from_user_id, to_user_id, status):
-        async with self.pool.acquire() as connection:
-            await connection.execute('''
-                UPDATE connection_requests 
-                SET status = $3, responded_at = NOW()
-                WHERE from_user_id = $1 AND to_user_id = $2
-            ''', from_user_id, to_user_id, status)
+    # async def update_connection_request(self, from_user_id, to_user_id, status):
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             UPDATE connection_requests
+    #             SET status = $3, responded_at = NOW()
+    #             WHERE from_user_id = $1 AND to_user_id = $2
+    #         ''', from_user_id, to_user_id, status)
 
     async def get_user_username(self, user_id):
         async with self.pool.acquire() as connection:
@@ -707,5 +712,78 @@ class Database:
         """Проверяет, является ли пользователь администратором"""
         async with self.pool.acquire() as connection:
             return telegram_id in self.admins
+
+    async def set_mutual_connection(self, user_id, companion_id, connection_type):
+        """Устанавливает взаимную связь между пользователями"""
+        async with self.pool.acquire() as connection:
+            if connection_type == "outer":
+                # User нашел Companion - устанавливаем взаимность
+                await connection.execute('''
+                    UPDATE seekers 
+                    SET outer_companion_mutual = TRUE
+                    WHERE telegram_id = $1
+                ''', user_id)
+
+                # Companion принимает User - устанавливаем взаимность
+                await connection.execute('''
+                    UPDATE seekers 
+                    SET income_companion_mutual = TRUE
+                    WHERE telegram_id = $2
+                ''', user_id, companion_id)
+
+            else:  # income
+                # User принимает Companion - устанавливаем взаимность
+                await connection.execute('''
+                    UPDATE seekers 
+                    SET income_companion_mutual = TRUE
+                    WHERE telegram_id = $1
+                ''', user_id)
+
+                # Companion нашел User - устанавливаем взаимность
+                await connection.execute('''
+                    UPDATE seekers 
+                    SET outer_companion_mutual = TRUE
+                    WHERE telegram_id = $2
+                ''', user_id, companion_id)
+
+    async def remove_outer_mutual_connection(self, user_id, companion_id):
+        """Удаляет взаимную связь между пользователями"""
+        async with self.pool.acquire() as connection:
+            # Сбрасываем флаги взаимности у обоих пользователей
+            await connection.execute('''
+                UPDATE seekers 
+                SET 
+                    outer_companion_mutual = FALSE,
+                    outer_companion_telegram_id = NULL
+                WHERE telegram_id = $1
+            ''', user_id)
+
+            await connection.execute('''
+                UPDATE seekers 
+                SET 
+                    income_companion_mutual = FALSE,
+                    income_companion_telegram_id = NULL
+                WHERE telegram_id = $1
+            ''', companion_id)
+
+    async def remove_income_mutual_connection(self, user_id, companion_id):
+        """Удаляет взаимную связь между пользователями"""
+        async with self.pool.acquire() as connection:
+            # Сбрасываем флаги взаимности у обоих пользователей
+            await connection.execute('''
+                UPDATE seekers 
+                SET 
+                    income_companion_mutual = FALSE,
+                    income_companion_telegram_id = NULL
+                WHERE telegram_id = $1
+            ''', user_id)
+
+            await connection.execute('''
+                UPDATE seekers 
+                SET 
+                    outer_companion_mutual = FALSE,
+                    outer_companion_telegram_id = NULL
+                WHERE telegram_id = $1
+            ''', companion_id)
 
 db = Database()

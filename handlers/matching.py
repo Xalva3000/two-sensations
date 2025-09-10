@@ -144,8 +144,9 @@ def format_profile_text(match):
 async def send_profile_message(message, match, profile_text):
     """Отправляет сообщение с профилем"""
     photo_id = match.get('photo_id')
+    photo_confirmed = match.get('is_photo_confirmed')
 
-    if photo_id:
+    if photo_confirmed and photo_id:
         try:
             await message.answer_photo(
                 photo_id,
