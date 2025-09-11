@@ -9,12 +9,9 @@ def get_connection_request_keyboard(from_user_id):
         ]
     ])
 
-def get_connection_response_keyboard(to_user_id, accepted):
-    status = "принял" if accepted else "отклонил"
-
+def get_connection_response_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            # [InlineKeyboardButton(text=f"🔄 Запрос {status}", callback_data="none")],
             [InlineKeyboardButton(text=f"Закрыть", callback_data="connection_cancel")],
         ])
 

@@ -19,9 +19,9 @@ router = Router()
 
 class RegistrationStates(StatesGroup):
     waiting_for_topics = State()  # Первым делом выбираем темы
-    waiting_for_gender = State()
-    waiting_for_age = State()
-    waiting_for_interested_age = State()
+    waiting_for_gender = State()  # Пол
+    waiting_for_age = State()  # Свой возраст
+    waiting_for_interested_age = State()  # Интересующий возраст
 
 
 @router.message(CommandStart())
@@ -153,7 +153,6 @@ async def process_interested_age(callback: CallbackQuery, state: FSMContext):
     gender = data.get("gender", 0)
     selected_topics = data.get("selected_topics", [])
 
-    print(data)
     if selected_topics:
         await db.set_user_topics(callback.from_user.id, selected_topics)
 

@@ -18,6 +18,7 @@ class AboutMeState(StatesGroup):
 
 @router.callback_query(F.data == "menu_view_profile")
 async def view_my_profile(callback: CallbackQuery):
+    """Сбор и вывод пользовательского профиля"""
     user = await db.get_user(callback.from_user.id)
     if not user:
         await callback.answer("Профиль не найден")
@@ -61,6 +62,7 @@ async def view_my_profile(callback: CallbackQuery):
 
 @router.callback_query(F.data == "edit_about_me")
 async def edit_about_me(callback: CallbackQuery, state: FSMContext):
+    """Изменение поля: о себе"""
     await callback.message.edit_text(
         "📝 Напишите о себе (максимум 250 символов):\n\n"
         "Расскажите о своих интересах, хобби, чем занимаетесь, "
@@ -74,11 +76,11 @@ async def edit_about_me(callback: CallbackQuery, state: FSMContext):
 
 @router.message(AboutMeState.waiting_for_about_me)
 async def process_about_me(message: Message, state: FSMContext):
+    """Прием и валидация текста поля 'о себе'"""
     about_me = message.text.strip()
     if len(about_me) > 250:
         await message.answer("❌ Слишком длинный текст. Максимум 250 символов.")
         return
-    print(message.from_user.id,)
     await db.update_about_me(message.from_user.id, about_me)
     # await message.answer()
     await state.clear()
@@ -91,6 +93,7 @@ async def process_about_me(message: Message, state: FSMContext):
 
 @router.callback_query(AboutMeState.waiting_for_about_me, F.data == "about_me_cancel")
 async def about_me_cancel(callback: CallbackQuery, state: FSMContext):
+    """Отмена ввода о себе"""
     await callback.message.edit_text(
         "Главное меню:",
         reply_markup=get_main_menu_keyboard()
@@ -100,6 +103,7 @@ async def about_me_cancel(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "profile_back")
 async def profile_back(callback: CallbackQuery):
+    """Удаление отображения своего профиля"""
     await callback.message.delete()
     # await callback.message.edit_text(
     #     "Главное меню:",

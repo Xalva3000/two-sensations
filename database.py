@@ -25,13 +25,10 @@ class Database:
                 CREATE TABLE IF NOT EXISTS seekers (
                     id BIGSERIAL PRIMARY KEY,
                     telegram_id BIGINT UNIQUE NOT NULL,
-                    outer_companion_telegram_id BIGINT,
-                    outer_companion_mutual BOOLEAN DEFAULT FALSE NOT NULL,
-                    income_companion_telegram_id BIGINT,
-                    income_companion_mutual BOOLEAN DEFAULT FALSE NOT NULL,
                     username VARCHAR(100),
                     first_name VARCHAR(100),
                     balance SMALLINT DEFAULT 100 NOT NULL,
+                    allowed_connections INT NOT NULL DEFAULT 1,
                     gender SMALLINT,
                     age SMALLINT,
                     interested_age SMALLINT,
@@ -132,7 +129,7 @@ class Database:
                     id BIGSERIAL PRIMARY KEY,
                     seeker_id BIGINT NOT NULL REFERENCES seekers(telegram_id) ON DELETE CASCADE,
                     companion_id BIGINT NOT NULL REFERENCES seekers(telegram_id) ON DELETE CASCADE,
-                    is_mutual BOOLEAN DEFAULT FALSE NOT NULL,
+                    status SMALLINT NOT NULL DEFAULT 0,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP,
                     UNIQUE(seeker_id, companion_id)
@@ -157,6 +154,8 @@ class Database:
                 END;
                 $$ LANGUAGE plpgsql;
                 
+                DROP TRIGGER IF EXISTS after_seeker_insert ON seekers;
+                
                 CREATE TRIGGER after_seeker_insert
                 AFTER INSERT ON seekers
                 FOR EACH ROW
@@ -169,41 +168,50 @@ class Database:
                 BEGIN
 
                     IF EXISTS (
-                        SELECT 1 FROM connections 
-                        WHERE seeker_id = NEW.companion_id 
-                        AND companion_id = NEW.seeker_id
-                        AND connection_type != NEW.connection_type
+                    
+                        SELECT 1 
+                        FROM connections 
+                        WHERE 
+                            seeker_id = NEW.companion_id 
+                            AND companion_id = NEW.seeker_id
+                            
                     ) THEN
 
                         UPDATE connections 
-                        SET is_mutual = TRUE, updated_at = NOW()
+                        SET status = 1, updated_at = NOW()
                         WHERE (seeker_id = NEW.seeker_id AND companion_id = NEW.companion_id)
                         OR (seeker_id = NEW.companion_id AND companion_id = NEW.seeker_id);
+                        
                     END IF;
                     
                     RETURN NEW;
                 END;
                 $$ LANGUAGE plpgsql;
     
+                DROP TRIGGER IF EXISTS trigger_mutual_connection ON connections;
+
                 CREATE TRIGGER trigger_mutual_connection
-                AFTER INSERT OR UPDATE ON connections
+                AFTER INSERT ON connections
                 FOR EACH ROW
                 EXECUTE FUNCTION update_mutual_connection();
             ''')
-
+            #  При удалении связи снимаем взаимность с обратной связи
             await connection.execute('''
                 CREATE OR REPLACE FUNCTION remove_mutual_connection()
                 RETURNS TRIGGER AS $$
                 BEGIN
-                    -- При удалении связи снимаем взаимность с обратной связи
+
                     UPDATE connections 
-                    SET is_mutual = FALSE, updated_at = NOW()
-                    WHERE seeker_id = OLD.companion_id 
-                    AND companion_id = OLD.seeker_id;
+                    SET status = 2, updated_at = NOW()
+                    WHERE 
+                        seeker_id = OLD.companion_id 
+                        AND companion_id = OLD.seeker_id;
 
                     RETURN OLD;
                 END;
                 $$ LANGUAGE plpgsql;
+                
+                DROP TRIGGER IF EXISTS trigger_remove_mutual_connection ON connections;
 
                 CREATE TRIGGER trigger_remove_mutual_connection
                 AFTER DELETE ON connections
@@ -875,15 +883,14 @@ class Database:
     #             WHERE telegram_id = $1
     #         ''', companion_id)
 
-    async def add_connection(self, seeker_id, companion_id, connection_type):
+    async def add_connection(self, seeker_id, companion_id):
         """Добавляет связь между пользователями"""
         async with self.pool.acquire() as connection:
             await connection.execute('''
-                INSERT INTO connections (seeker_id, companion_id, connection_type)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (seeker_id, companion_id) DO UPDATE
-                SET connection_type = $3, updated_at = NOW()
-            ''', seeker_id, companion_id, connection_type)
+                INSERT INTO connections (seeker_id, companion_id)
+                VALUES ($1, $2)
+                ON CONFLICT (seeker_id, companion_id) DO NOTHING
+            ''', seeker_id, companion_id)
 
     async def remove_connection(self, seeker_id, companion_id):
         """Удаляет связь между пользователями"""
@@ -893,7 +900,18 @@ class Database:
                 WHERE seeker_id = $1 AND companion_id = $2
             ''', seeker_id, companion_id)
 
-    async def get_connections(self, seeker_id, connection_type=None):
+    async def reject_connection(self, seeker_id, companion_id):
+        """Присваивает отклоненный статус для связи"""
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE connections
+                SET status = 2
+                WHERE 
+                    seeker_id = $1 
+                    AND companion_id = $2
+            ''', companion_id, seeker_id)
+
+    async def get_connections(self, seeker_id):
         """Получает связи пользователя"""
         async with self.pool.acquire() as connection:
             query = '''
@@ -904,9 +922,17 @@ class Database:
             '''
             params = [seeker_id]
 
-            if connection_type:
-                query += ' AND c.connection_type = $2'
-                params.append(connection_type)
+            return await connection.fetch(query, *params)
+
+    async def count_connections(self, seeker_id):
+        """Считает связи пользователя"""
+        async with self.pool.acquire() as connection:
+            query = '''
+                SELECT COUNT(*)
+                FROM connections
+                WHERE seeker_id = $1
+            '''
+            params = [seeker_id]
 
             return await connection.fetch(query, *params)
 
@@ -914,11 +940,11 @@ class Database:
         """Проверяет взаимность связи"""
         async with self.pool.acquire() as connection:
             return await connection.fetchval('''
-                SELECT COUNT(*) = 2
+                SELECT status = 1
                 FROM connections 
-                WHERE (seeker_id = $1 AND companion_id = $2)
-                OR (seeker_id = $2 AND companion_id = $1)
-            ''', user1_id, user2_id)
+                WHERE 
+                    seeker_id = $1
+            ''', user1_id)
 
     async def get_companions(self, telegram_id):
         """Получает всех собеседников пользователя"""
