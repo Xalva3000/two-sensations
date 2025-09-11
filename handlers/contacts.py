@@ -45,7 +45,7 @@ async def accept_outer_profile(callback: CallbackQuery):
 
     # Уведомляем инициатора
     await callback.answer("✅ Запрос отправлен!")
-    await callback.message.edit_text(
+    await callback.message.answer(
         "⏳ Запрос на соединение отправлен!\n\n"
         "Ждем ответа от пользователя. Вы получите уведомление, "
         "когда он примет решение.",
