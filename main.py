@@ -23,6 +23,7 @@ async def main():
     # Инициализация базы данных
     await db.create_pool()
     await db.create_tables()
+    await db.create_triggers()
 
     # Инициализация бота
     bot = Bot(token=config.BOT_TOKEN)

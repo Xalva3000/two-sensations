@@ -127,6 +127,91 @@ class Database:
                 )
             ''')
 
+            await connection.execute('''
+                CREATE TABLE IF NOT EXISTS connections (
+                    id BIGSERIAL PRIMARY KEY,
+                    seeker_id BIGINT NOT NULL REFERENCES seekers(telegram_id) ON DELETE CASCADE,
+                    companion_id BIGINT NOT NULL REFERENCES seekers(telegram_id) ON DELETE CASCADE,
+                    is_mutual BOOLEAN DEFAULT FALSE NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP,
+                    UNIQUE(seeker_id, companion_id)
+                )
+            ''')
+
+    async def create_triggers(self):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                CREATE OR REPLACE FUNCTION create_seeker_preferences()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                
+                    INSERT INTO preferences (seeker_id)
+                        VALUES (NEW.telegram_id);
+                        
+                    INSERT INTO topics (seeker_id)
+                        VALUES (NEW.telegram_id);
+                
+                    RETURN NEW;
+                    
+                END;
+                $$ LANGUAGE plpgsql;
+                
+                CREATE TRIGGER after_seeker_insert
+                AFTER INSERT ON seekers
+                FOR EACH ROW
+                EXECUTE FUNCTION create_seeker_preferences();
+            ''')
+
+            await connection.execute('''
+                CREATE OR REPLACE FUNCTION update_mutual_connection()
+                RETURNS TRIGGER AS $$
+                BEGIN
+
+                    IF EXISTS (
+                        SELECT 1 FROM connections 
+                        WHERE seeker_id = NEW.companion_id 
+                        AND companion_id = NEW.seeker_id
+                        AND connection_type != NEW.connection_type
+                    ) THEN
+
+                        UPDATE connections 
+                        SET is_mutual = TRUE, updated_at = NOW()
+                        WHERE (seeker_id = NEW.seeker_id AND companion_id = NEW.companion_id)
+                        OR (seeker_id = NEW.companion_id AND companion_id = NEW.seeker_id);
+                    END IF;
+                    
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+    
+                CREATE TRIGGER trigger_mutual_connection
+                AFTER INSERT OR UPDATE ON connections
+                FOR EACH ROW
+                EXECUTE FUNCTION update_mutual_connection();
+            ''')
+
+            await connection.execute('''
+                CREATE OR REPLACE FUNCTION remove_mutual_connection()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    -- При удалении связи снимаем взаимность с обратной связи
+                    UPDATE connections 
+                    SET is_mutual = FALSE, updated_at = NOW()
+                    WHERE seeker_id = OLD.companion_id 
+                    AND companion_id = OLD.seeker_id;
+
+                    RETURN OLD;
+                END;
+                $$ LANGUAGE plpgsql;
+
+                CREATE TRIGGER trigger_remove_mutual_connection
+                AFTER DELETE ON connections
+                FOR EACH ROW
+                EXECUTE FUNCTION remove_mutual_connection();
+            ''')
+
+
     async def add_user(self, telegram_id, username, first_name):
         async with self.pool.acquire() as connection:
             return await connection.fetchrow('''
@@ -217,12 +302,16 @@ class Database:
                 WHERE 
                     s.telegram_id != $1
                     AND s.is_active = TRUE
-                    AND s.income_companion_telegram_id IS NULL
                     AND p.is_seekable = TRUE
                     AND s.telegram_id NOT IN (
-                            SELECT rejected_seeker_id 
-                            FROM rejections 
-                            WHERE seeker_id = $1
+                        SELECT rejected_seeker_id 
+                        FROM rejections 
+                        WHERE seeker_id = $1
+                    )
+                    AND s.telegram_id NOT IN (
+                        SELECT companion_id 
+                        FROM connections 
+                        WHERE seeker_id = $1
                     )
             '''
             params = [current_user_id, ]
@@ -713,77 +802,142 @@ class Database:
         async with self.pool.acquire() as connection:
             return telegram_id in self.admins
 
-    async def set_mutual_connection(self, user_id, companion_id, connection_type):
-        """Устанавливает взаимную связь между пользователями"""
+    # async def set_mutual_connection(self, user_id, companion_id, connection_type):
+    #     """Устанавливает взаимную связь между пользователями"""
+    #     async with self.pool.acquire() as connection:
+    #         if connection_type == "outer":
+    #             # User нашел Companion - устанавливаем взаимность
+    #             await connection.execute('''
+    #                 UPDATE seekers
+    #                 SET outer_companion_mutual = TRUE
+    #                 WHERE telegram_id = $1
+    #             ''', user_id)
+    #
+    #             # Companion принимает User - устанавливаем взаимность
+    #             await connection.execute('''
+    #                 UPDATE seekers
+    #                 SET income_companion_mutual = TRUE
+    #                 WHERE telegram_id = $2
+    #             ''', user_id, companion_id)
+    #
+    #         else:  # income
+    #             # User принимает Companion - устанавливаем взаимность
+    #             await connection.execute('''
+    #                 UPDATE seekers
+    #                 SET income_companion_mutual = TRUE
+    #                 WHERE telegram_id = $1
+    #             ''', user_id)
+    #
+    #             # Companion нашел User - устанавливаем взаимность
+    #             await connection.execute('''
+    #                 UPDATE seekers
+    #                 SET outer_companion_mutual = TRUE
+    #                 WHERE telegram_id = $2
+    #             ''', user_id, companion_id)
+
+    # async def remove_outer_mutual_connection(self, user_id, companion_id):
+    #     """Удаляет взаимную связь между пользователями"""
+    #     async with self.pool.acquire() as connection:
+    #         # Сбрасываем флаги взаимности у обоих пользователей
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET
+    #                 outer_companion_mutual = FALSE,
+    #                 outer_companion_telegram_id = NULL
+    #             WHERE telegram_id = $1
+    #         ''', user_id)
+    #
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET
+    #                 income_companion_mutual = FALSE,
+    #                 income_companion_telegram_id = NULL
+    #             WHERE telegram_id = $1
+    #         ''', companion_id)
+
+    # async def remove_income_mutual_connection(self, user_id, companion_id):
+    #     """Удаляет взаимную связь между пользователями"""
+    #     async with self.pool.acquire() as connection:
+    #         # Сбрасываем флаги взаимности у обоих пользователей
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET
+    #                 income_companion_mutual = FALSE,
+    #                 income_companion_telegram_id = NULL
+    #             WHERE telegram_id = $1
+    #         ''', user_id)
+    #
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET
+    #                 outer_companion_mutual = FALSE,
+    #                 outer_companion_telegram_id = NULL
+    #             WHERE telegram_id = $1
+    #         ''', companion_id)
+
+    async def add_connection(self, seeker_id, companion_id, connection_type):
+        """Добавляет связь между пользователями"""
         async with self.pool.acquire() as connection:
-            if connection_type == "outer":
-                # User нашел Companion - устанавливаем взаимность
-                await connection.execute('''
-                    UPDATE seekers 
-                    SET outer_companion_mutual = TRUE
-                    WHERE telegram_id = $1
-                ''', user_id)
+            await connection.execute('''
+                INSERT INTO connections (seeker_id, companion_id, connection_type)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (seeker_id, companion_id) DO UPDATE
+                SET connection_type = $3, updated_at = NOW()
+            ''', seeker_id, companion_id, connection_type)
 
-                # Companion принимает User - устанавливаем взаимность
-                await connection.execute('''
-                    UPDATE seekers 
-                    SET income_companion_mutual = TRUE
-                    WHERE telegram_id = $2
-                ''', user_id, companion_id)
-
-            else:  # income
-                # User принимает Companion - устанавливаем взаимность
-                await connection.execute('''
-                    UPDATE seekers 
-                    SET income_companion_mutual = TRUE
-                    WHERE telegram_id = $1
-                ''', user_id)
-
-                # Companion нашел User - устанавливаем взаимность
-                await connection.execute('''
-                    UPDATE seekers 
-                    SET outer_companion_mutual = TRUE
-                    WHERE telegram_id = $2
-                ''', user_id, companion_id)
-
-    async def remove_outer_mutual_connection(self, user_id, companion_id):
-        """Удаляет взаимную связь между пользователями"""
+    async def remove_connection(self, seeker_id, companion_id):
+        """Удаляет связь между пользователями"""
         async with self.pool.acquire() as connection:
-            # Сбрасываем флаги взаимности у обоих пользователей
             await connection.execute('''
-                UPDATE seekers 
-                SET 
-                    outer_companion_mutual = FALSE,
-                    outer_companion_telegram_id = NULL
-                WHERE telegram_id = $1
-            ''', user_id)
+                DELETE FROM connections 
+                WHERE seeker_id = $1 AND companion_id = $2
+            ''', seeker_id, companion_id)
 
-            await connection.execute('''
-                UPDATE seekers 
-                SET 
-                    income_companion_mutual = FALSE,
-                    income_companion_telegram_id = NULL
-                WHERE telegram_id = $1
-            ''', companion_id)
-
-    async def remove_income_mutual_connection(self, user_id, companion_id):
-        """Удаляет взаимную связь между пользователями"""
+    async def get_connections(self, seeker_id, connection_type=None):
+        """Получает связи пользователя"""
         async with self.pool.acquire() as connection:
-            # Сбрасываем флаги взаимности у обоих пользователей
-            await connection.execute('''
-                UPDATE seekers 
-                SET 
-                    income_companion_mutual = FALSE,
-                    income_companion_telegram_id = NULL
-                WHERE telegram_id = $1
-            ''', user_id)
+            query = '''
+                SELECT c.*, s.first_name, s.username 
+                FROM connections c
+                JOIN seekers s ON c.companion_id = s.telegram_id
+                WHERE c.seeker_id = $1
+            '''
+            params = [seeker_id]
 
-            await connection.execute('''
-                UPDATE seekers 
-                SET 
-                    outer_companion_mutual = FALSE,
-                    outer_companion_telegram_id = NULL
-                WHERE telegram_id = $1
-            ''', companion_id)
+            if connection_type:
+                query += ' AND c.connection_type = $2'
+                params.append(connection_type)
+
+            return await connection.fetch(query, *params)
+
+    async def is_mutual_connection(self, user1_id, user2_id):
+        """Проверяет взаимность связи"""
+        async with self.pool.acquire() as connection:
+            return await connection.fetchval('''
+                SELECT COUNT(*) = 2
+                FROM connections 
+                WHERE (seeker_id = $1 AND companion_id = $2)
+                OR (seeker_id = $2 AND companion_id = $1)
+            ''', user1_id, user2_id)
+
+    async def get_companions(self, telegram_id):
+        """Получает всех собеседников пользователя"""
+        async with self.pool.acquire() as connection:
+            return await connection.fetch('''
+                SELECT s.*, c.is_mutual
+                FROM connections c
+                JOIN seekers s ON c.companion_id = s.telegram_id
+                WHERE c.seeker_id = $1
+            ''', telegram_id)
+
+    async def get_companion(self, telegram_id):
+        """Получает outer companion"""
+        async with self.pool.acquire() as connection:
+            return await connection.fetchrow('''
+                SELECT s.*, c.is_mutual
+                FROM connections c
+                JOIN seekers s ON c.companion_id = s.telegram_id
+                WHERE c.seeker_id = $1
+            ''', telegram_id)
 
 db = Database()
