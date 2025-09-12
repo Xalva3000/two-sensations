@@ -1,11 +1,9 @@
 from aiogram import Router, F
-from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from LEXICON.numbers import age_groups
 from database import db
 from keyboards.connection_keyboards import get_connection_response_keyboard, get_connection_request_keyboard
-from keyboards.main import get_settings_keyboard
 
 router = Router()
 

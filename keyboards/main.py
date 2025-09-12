@@ -169,22 +169,34 @@ def get_photo_keyboard():
         [InlineKeyboardButton(text="Закрыть", callback_data="photo_close")],
     ])
 
-def get_companions_menu_keyboard():
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(
-                text="👤 Тот, кого я нашел",
-                callback_data="menu_view_outer_companion")],
-            [InlineKeyboardButton(
-                text="👤 Тот, кто меня нашел",
-                callback_data="menu_view_income_companion")],
-            # [InlineKeyboardButton(
-            #     text="❌ Удалить найденного собеседника",
-            #     callback_data="settings_remove_outer_companion")],
-            # [InlineKeyboardButton(
-            #     text="❌ Удалить нашедшего собеседника",
-            #     callback_data="settings_remove_income_companion")],
-            [InlineKeyboardButton(
-                text="⬅️ Назад",
-                callback_data="companions_back")]
-        ])
+# def get_companions_menu_keyboard():
+#     inline_keyboard = []
+#
+#     inline_keyboard.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="companions_back_to_main_menu")])
+#
+#     markup = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+#     return markup
+
+
+def get_companions_slots_keyboard(slots):
+    """Создает клавиатуру с слотами собеседников"""
+    inline_keyboard = []
+
+    for slot in slots:
+        if slot['is_empty']:
+            button_text = f"📭 Слот {slot['slot_number']}: Пусто"
+            callback_data = f"empty_slot_{slot['slot_number']}"
+        else:
+            conn = slot['connection']
+            button_text = f"👤 Слот {slot['slot_number']}: {conn['first_name']}"
+            callback_data = f"companion_slot_{conn['companion_id']}"
+
+        inline_keyboard.append([InlineKeyboardButton(text=button_text, callback_data=callback_data)])
+
+    # Кнопки действий
+    inline_keyboard.append([
+        InlineKeyboardButton(text="➕ Купить слот", callback_data="buy_slot"),
+        InlineKeyboardButton(text="⬅️ Назад", callback_data="companions_back_to_main_menu")
+    ])
+
+    return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)

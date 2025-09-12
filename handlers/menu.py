@@ -5,7 +5,7 @@ from database import db
 from keyboards.main import (
     get_main_menu_keyboard,
     get_settings_keyboard,
-    get_companions_menu_keyboard,
+    get_companions_slots_keyboard,
 )
 
 # menu_router
@@ -24,31 +24,28 @@ async def menu_settings(callback: CallbackQuery):
     )
 
 
-@router.callback_query(F.data == "menu_companions")
-async def menu_companions(callback: CallbackQuery):
-    user = await db.get_user(callback.from_user.id)
-
-    # Проверяем, есть ли у пользователя собеседники
-    has_outer = user and user.get('outer_companion_telegram_id')
-    has_income = user and user.get('income_companion_telegram_id')
-
-    if not has_outer and not has_income:
-        await callback.answer("У вас пока нет собеседников")
-        return
-
-    text = "👥 Ваши собеседники:\n\n"
-    if has_outer:
-        text += "✅ Тот, кого вы нашли\n"
-    if has_income:
-        text += "✅ Тот, кто вас нашел\n"
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=get_companions_menu_keyboard()
-    )
+# @router.callback_query(F.data == "menu_companions")
+# async def menu_companions(callback: CallbackQuery):
+#     user = await db.get_user(callback.from_user.id)
+#
+#     # Проверяем, есть ли у пользователя собеседники
+#     has_outer = user and user.get('outer_companion_telegram_id')
+#     has_income = user and user.get('income_companion_telegram_id')
+#
+#     if not has_outer and not has_income:
+#         await callback.answer("У вас пока нет собеседников")
+#         return
+#
+#     text = "👥 Ваши собеседники:\n\n"
+#
+#     await callback.message.edit_text(
+#         text,
+#         reply_markup=get_companions_menu_keyboard()
+#     )
 
 
-@router.callback_query(F.data == "companions_back")
+
+@router.callback_query(F.data == "companions_back_to_main_menu")
 async def companions_back(callback: CallbackQuery):
     await callback.message.edit_text(
         "Главное меню:",

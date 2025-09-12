@@ -27,6 +27,7 @@ class Database:
                     telegram_id BIGINT UNIQUE NOT NULL,
                     username VARCHAR(100),
                     first_name VARCHAR(100),
+                    companion_slots SMALLINT DEFAULT 1 NOT NULL CHECK (companion_slots BETWEEN 1 AND 10),
                     balance SMALLINT DEFAULT 100 NOT NULL,
                     allowed_connections INT NOT NULL DEFAULT 1,
                     gender SMALLINT,
@@ -129,10 +130,12 @@ class Database:
                     id BIGSERIAL PRIMARY KEY,
                     seeker_id BIGINT NOT NULL REFERENCES seekers(telegram_id) ON DELETE CASCADE,
                     companion_id BIGINT NOT NULL REFERENCES seekers(telegram_id) ON DELETE CASCADE,
+                    slot_number SMALLINT NOT NULL CHECK (slot_number BETWEEN 1 AND 10),
                     status SMALLINT NOT NULL DEFAULT 0,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP,
-                    UNIQUE(seeker_id, companion_id)
+                    UNIQUE(seeker_id, companion_id),
+                    UNIQUE(seeker_id, slot_number)
                 )
             ''')
 
@@ -567,41 +570,41 @@ class Database:
                     WHERE seeker_id = {seeker_id}
                 ''', *params)
 
-    async def remove_outer_companion(self, telegram_id):
-        async with self.pool.acquire() as connection:
-            await connection.execute('''
-                UPDATE seekers 
-                SET outer_companion_telegram_id = NULL 
-                WHERE telegram_id = $1
-            ''', telegram_id)
+    # async def remove_outer_companion(self, telegram_id):
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET outer_companion_telegram_id = NULL
+    #             WHERE telegram_id = $1
+    #         ''', telegram_id)
 
-    async def remove_income_companion(self, telegram_id):
-        async with self.pool.acquire() as connection:
-            await connection.execute('''
-                UPDATE seekers 
-                SET income_companion_telegram_id = NULL 
-                WHERE telegram_id = $1
-            ''', telegram_id)
+    # async def remove_income_companion(self, telegram_id):
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET income_companion_telegram_id = NULL
+    #             WHERE telegram_id = $1
+    #         ''', telegram_id)
 
-    async def set_outer_companion(self, telegram_id, new_companion_id):
-        async with self.pool.acquire() as connection:
-            await connection.execute('''
-                UPDATE seekers 
-                SET 
-                    outer_companion_telegram_id = $1,
-                    outer_companion_mutual = TRUE
-                WHERE telegram_id = $2
-            ''', new_companion_id, telegram_id)
-
-    async def set_income_companion(self, telegram_id, new_companion_id):
-        async with self.pool.acquire() as connection:
-            await connection.execute('''
-                UPDATE seekers 
-                SET 
-                    income_companion_telegram_id = $1,
-                    income_companion_mutual = TRUE
-                WHERE telegram_id = $2
-            ''', new_companion_id, telegram_id)
+    # async def set_outer_companion(self, telegram_id, new_companion_id):
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET
+    #                 outer_companion_telegram_id = $1,
+    #                 outer_companion_mutual = TRUE
+    #             WHERE telegram_id = $2
+    #         ''', new_companion_id, telegram_id)
+    #
+    # async def set_income_companion(self, telegram_id, new_companion_id):
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             UPDATE seekers
+    #             SET
+    #                 income_companion_telegram_id = $1,
+    #                 income_companion_mutual = TRUE
+    #             WHERE telegram_id = $2
+    #         ''', new_companion_id, telegram_id)
 
     async def update_about_me(self, telegram_id, about_me):
         async with self.pool.acquire() as connection:
@@ -883,17 +886,40 @@ class Database:
     #             WHERE telegram_id = $1
     #         ''', companion_id)
 
+    # async def add_connection(self, seeker_id, companion_id):
+    #     """Добавляет связь между пользователями"""
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             INSERT INTO connections (seeker_id, companion_id)
+    #             VALUES ($1, $2)
+    #             ON CONFLICT (seeker_id, companion_id) DO NOTHING
+    #         ''', seeker_id, companion_id)
+    #
+    # async def remove_connection(self, seeker_id, companion_id):
+    #     """Удаляет связь между пользователями"""
+    #     async with self.pool.acquire() as connection:
+    #         await connection.execute('''
+    #             DELETE FROM connections
+    #             WHERE seeker_id = $1 AND companion_id = $2
+    #         ''', seeker_id, companion_id)
+
     async def add_connection(self, seeker_id, companion_id):
-        """Добавляет связь между пользователями"""
+        """Добавляет связь с проверкой свободных слотов"""
         async with self.pool.acquire() as connection:
+
+            # Проверяем есть ли свободные слоты
+            available_slot = await self.get_available_slot(seeker_id)
+            if not available_slot:
+                raise Exception("Нет свободных слотов для собеседников")
+
             await connection.execute('''
-                INSERT INTO connections (seeker_id, companion_id)
-                VALUES ($1, $2)
+                INSERT INTO connections (seeker_id, companion_id, slot_number)
+                VALUES ($1, $2, $3)
                 ON CONFLICT (seeker_id, companion_id) DO NOTHING
-            ''', seeker_id, companion_id)
+            ''', seeker_id, companion_id, available_slot)
 
     async def remove_connection(self, seeker_id, companion_id):
-        """Удаляет связь между пользователями"""
+        """Удаляет связь и освобождает слот"""
         async with self.pool.acquire() as connection:
             await connection.execute('''
                 DELETE FROM connections 
@@ -965,5 +991,101 @@ class Database:
                 JOIN seekers s ON c.companion_id = s.telegram_id
                 WHERE c.seeker_id = $1
             ''', telegram_id)
+
+    async def get_available_slot(self, seeker_id):
+        """Находит свободный слот для пользователя"""
+        async with self.pool.acquire() as connection:
+            # Получаем общее количество слотов
+            total_slots = await connection.fetchval('''
+                SELECT companion_slots FROM seekers WHERE telegram_id = $1
+            ''', seeker_id)
+
+            # Ищем занятые слоты
+            occupied_slots = await connection.fetch('''
+                SELECT slot_number FROM connections 
+                WHERE seeker_id = $1 
+                ORDER BY slot_number
+            ''', seeker_id)
+
+            occupied_numbers = [slot['slot_number'] for slot in occupied_slots]
+
+            # Ищем первый свободный слот
+            for slot in range(1, total_slots + 1):
+                if slot not in occupied_numbers:
+                    return slot
+
+            return None  # Все слоты заняты
+
+    async def add_connection_with_slot(self, seeker_id, companion_id, connection_type):
+        """Добавляет связь с автоматическим назначением слота"""
+        async with self.pool.acquire() as connection:
+            # Находим свободный слот
+            slot_number = await self.get_available_slot(seeker_id)
+            if not slot_number:
+                raise Exception("Нет свободных слотов для собеседников")
+
+            await connection.execute('''
+                INSERT INTO connections (seeker_id, companion_id, slot_number)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (seeker_id, companion_id) DO UPDATE
+                SET slot_number = $3, updated_at = NOW()
+            ''', seeker_id, companion_id, connection_type, slot_number)
+
+    async def get_connections_by_slots(self, seeker_id):
+        """Получает связи пользователя сгруппированные по слотам"""
+        async with self.pool.acquire() as connection:
+            # Получаем общее количество слотов
+            total_slots = await connection.fetchval('''
+                SELECT companion_slots FROM seekers WHERE telegram_id = $1
+            ''', seeker_id)
+
+            # Получаем все связи
+            connections = await connection.fetch('''
+                SELECT c.*, s.first_name, s.username 
+                FROM connections c
+                JOIN seekers s ON c.companion_id = s.telegram_id
+                WHERE c.seeker_id = $1
+                ORDER BY c.slot_number
+            ''', seeker_id)
+
+            # Создаем массив слотов
+            slots = []
+            connection_map = {conn['slot_number']: conn for conn in connections}
+
+            for slot_number in range(1, total_slots + 1):
+                if slot_number in connection_map:
+                    slots.append({
+                        'slot_number': slot_number,
+                        'connection': connection_map[slot_number],
+                        'is_empty': False
+                    })
+                else:
+                    slots.append({
+                        'slot_number': slot_number,
+                        'connection': None,
+                        'is_empty': True
+                    })
+
+            return slots
+
+    async def upgrade_slots_amount(self, seeker_id, new_slots_count):
+        """Увеличивает количество слотов (платная функция)"""
+        async with self.pool.acquire() as connection:
+            if new_slots_count > 10:
+                new_slots_count = 10
+
+            await connection.execute('''
+                UPDATE seekers 
+                SET companion_slots = $1 
+                WHERE telegram_id = $2
+            ''', new_slots_count, seeker_id)
+
+    async def deduct_balance(self, user_id, cost):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE seekers 
+                SET balance = balance - $2 
+                WHERE telegram_id = $1
+            ''', user_id, cost)
 
 db = Database()
