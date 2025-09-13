@@ -11,6 +11,13 @@ from keyboards.main import get_companions_slots_keyboard
 
 router = Router()
 
+
+def get_companion_close_keyboard():
+     return InlineKeyboardMarkup(inline_keyboard=[
+         [InlineKeyboardButton(text="Закрыть", callback_data="companion_close")],
+     ])
+
+
 class ConfirmCompanionDeleteState(StatesGroup):
     waiting_confirmation = State()
 
@@ -48,7 +55,7 @@ def get_companion_action_keyboard(companion_id):
     """Клавиатура действий с companion"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="➖ Удалить", callback_data=f"remove_companion_confirm"),
+            InlineKeyboardButton(text="➖ Удалить", callback_data=f"remove_companion_{companion_id}"),
             InlineKeyboardButton(text="⚠️ Пожаловаться", callback_data=f"report_{companion_id}")
         ],
         [InlineKeyboardButton(text="Закрыть", callback_data="companion_close")]
@@ -79,7 +86,7 @@ async def menu_companions(callback: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("companion_close"))
-async def matching_close(callback: CallbackQuery):
+async def companion_close(callback: CallbackQuery):
     await callback.message.delete()
 
 
@@ -163,10 +170,10 @@ def format_companion_profile(companion, companion_type):
 
 
 
-@router.callback_query(F.data == "remove_companion_confirm")
+@router.callback_query(F.data.startswith("remove_companion_"))
 async def confirm_remove_companion(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    print(data)
+    companion_id = int(callback.data.replace("remove_companion_", ""))
+    await state.update_data(companion_id=companion_id)
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Да, удалить", callback_data="confirm_companion_delete")],
         [InlineKeyboardButton(text="❌ Нет, отмена", callback_data="cancel_companion_delete")]
