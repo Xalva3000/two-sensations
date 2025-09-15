@@ -46,7 +46,8 @@ def get_main_menu_keyboard():
         [InlineKeyboardButton(text="🎭 Выбрать ощущения", callback_data="menu_topics")],
         [InlineKeyboardButton(text="👥 Мои собеседники", callback_data="menu_companions")],
         [InlineKeyboardButton(text="⚙️ Настройки", callback_data="menu_settings")],
-        [InlineKeyboardButton(text="🔍 Найти собеседника", callback_data="menu_search")]
+        [InlineKeyboardButton(text="🔍 Найти собеседника", callback_data="menu_search")],
+        [InlineKeyboardButton(text="✖️", callback_data="menu_close")],
     ])
 
 def get_settings_keyboard():

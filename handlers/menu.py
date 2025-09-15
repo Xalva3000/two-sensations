@@ -1,11 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 
-from database import db
 from keyboards.main import (
     get_main_menu_keyboard,
     get_settings_keyboard,
-    get_companions_slots_keyboard,
 )
 
 # menu_router
@@ -60,6 +58,9 @@ async def menu_back(callback: CallbackQuery):
         reply_markup=get_main_menu_keyboard()
     )
 
+@router.callback_query(F.data.startswith("menu_close"))
+async def menu_close(callback: CallbackQuery):
+    await callback.message.delete()
 
 # @router.callback_query(F.data == "menu_photo")
 # async def menu_photo(callback: CallbackQuery):
