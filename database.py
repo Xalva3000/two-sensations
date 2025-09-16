@@ -375,7 +375,8 @@ class Database:
             result = await connection.fetchrow(query, *params)
             if result:
                 user = dict(result)
-                # user['topics'] = await self.get_user_topics(user['telegram_id'])
+                user['topics'] = await self.get_user_topics(user['telegram_id'])
+                # print(user)
                 return user
 
             return None
@@ -701,6 +702,12 @@ class Database:
             await connection.execute('''
                 UPDATE seekers SET username = $1 WHERE telegram_id = $2
             ''', username, telegram_id)
+
+    async def update_first_name(self, telegram_id, first_name):
+        async with self.pool.acquire() as connection:
+            await connection.execute('''
+                UPDATE seekers SET first_name = $1 WHERE telegram_id = $2
+            ''', first_name, telegram_id)
 
     async def update_topic(self, seeker_id, topic_index, value):
         async with self.pool.acquire() as connection:

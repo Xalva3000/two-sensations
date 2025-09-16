@@ -27,6 +27,10 @@ class SettingsState(StatesGroup):
     waiting_for_hide = State()
 
 
+class AboutMeState(StatesGroup):
+    waiting_for_about_me = State()
+
+
 @router.callback_query(F.data == "settings_restart_profile")
 async def settings_restart_profile(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
@@ -36,8 +40,57 @@ async def settings_restart_profile(callback: CallbackQuery, state: FSMContext):
     await state.set_state(RegistrationStates.waiting_for_gender)
 
 
+@router.callback_query(F.data == "edit_about_me")
+async def edit_about_me(callback: CallbackQuery, state: FSMContext):
+    """Изменение поля: о себе"""
+    await callback.message.edit_text(
+        "📝 Напишите о себе (максимум 250 символов):\n\n"
+        "Расскажите о своих интересах, хобби, чем занимаетесь, "
+        "что ищете в собеседнике.",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Отмена", callback_data="about_me_cancel")],
+                [InlineKeyboardButton(text="✖️", callback_data="about_me_close")],
+            ])
+    )
+    await state.set_state(AboutMeState.waiting_for_about_me)
+
+
+@router.message(AboutMeState.waiting_for_about_me)
+async def process_about_me(message: Message, state: FSMContext):
+    """Прием и валидация текста поля 'о себе'"""
+    about_me = message.text.strip()
+    if len(about_me) > 250:
+        await message.answer("❌ Слишком длинный текст. Максимум 250 символов.")
+        return
+    await db.update_about_me(message.from_user.id, about_me)
+    # await message.answer()
+    await state.clear()
+    menu_title = "✅ Информация о себе сохранена!"
+    await message.answer(
+        text=f"_____{menu_title}_____",
+        reply_markup=get_settings_keyboard()
+    )
+
+
+@router.callback_query(AboutMeState.waiting_for_about_me, F.data == "about_me_cancel")
+async def about_me_cancel(callback: CallbackQuery, state: FSMContext):
+    """Отмена ввода о себе"""
+    await callback.message.edit_text(
+        "Главное меню:",
+        reply_markup=get_main_menu_keyboard()
+    )
+    await state.clear()
+
+@router.callback_query(AboutMeState.waiting_for_about_me, F.data == "about_me_close")
+async def about_me_close(callback: CallbackQuery, state: FSMContext):
+    """Удаление сообщения ввода о себе"""
+    await state.clear()
+    await callback.message.delete()
+
+
 @router.callback_query(F.data == "settings_import_contact")
-async def settings_import_contact(callback: CallbackQuery, state: FSMContext):
+async def settings_import_contact(callback: CallbackQuery):
     user = callback.from_user
     if user.username:
         # Сохраняем username в базу
@@ -65,8 +118,46 @@ async def settings_import_contact(callback: CallbackQuery, state: FSMContext):
             ])
         )
 
+@router.callback_query(F.data == "settings_import_first_name")
+async def settings_import_first_name(callback: CallbackQuery):
+    user = callback.from_user
+    if user.first_name:
+        # Сохраняем username в базу
+        await db.update_first_name(user.id, user.first_name)
+
+        await callback.message.edit_text(
+            f"✅ Имя обновлено!\n\n"
+            f"Ваше имя: {user.first_name}\n\n"
+            f"Если захотите изменить имя:\n"
+            f"1. Измените его в настройках профиля Telegram,\n"
+            f"2. и снова передайте(импортируйте) его боту здесь, в этих настройках.",
+            reply_markup=get_settings_keyboard()
+        )
+    else:
+        await callback.message.edit_text(
+            "❌ У вас не установлено имя!\n\n"
+            "Чтобы использовать эту функцию:\n"
+            "1. Зайдите в 'Мой профиль' в Telegram\n"
+            "2. Нажмите кнопку 'Изменить информацию'\n"
+            "3. Введите желаемое имя\n"
+            "4. Вернитесь и попробуйте снова импортировать это имя",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="settings_import_first_name")],
+                [InlineKeyboardButton(text="⬅️ Назад", callback_data="first_name_import_cancel")]
+            ])
+        )
+
+
 @router.callback_query(F.data == "contact_import_cancel")
 async def contact_import_cancel(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(
+        "⚙️ Настройки:",
+        reply_markup=get_settings_keyboard()
+    )
+    await state.clear()
+
+@router.callback_query(F.data == "first_name_import_cancel")
+async def first_name_import_cancel(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "⚙️ Настройки:",
         reply_markup=get_settings_keyboard()
@@ -87,7 +178,8 @@ async def settings_city(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "🏙️ Введите название вашего города:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Отмена", callback_data="city_cancel")]
+            [InlineKeyboardButton(text="⬅️ Отмена", callback_data="city_cancel")],
+            [InlineKeyboardButton(text="✖️", callback_data="city_close")],
         ])
     )
     await state.set_state(SettingsState.waiting_for_city)
@@ -114,6 +206,12 @@ async def city_cancel(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_settings_keyboard()
     )
     await state.clear()
+
+@router.callback_query(F.data == "city_close")
+async def city_close(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.delete()
+
 
 
 @router.callback_query(F.data == "settings_city_only")

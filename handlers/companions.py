@@ -56,7 +56,7 @@ def get_companion_action_keyboard(companion_id):
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="➖ Удалить", callback_data=f"remove_companion_{companion_id}"),
-            InlineKeyboardButton(text="⚠️ Пожаловаться", callback_data=f"report_{companion_id}")
+            InlineKeyboardButton(text="⚠️ Пожаловаться", callback_data=f"report_{companion_id}"),
         ],
         [InlineKeyboardButton(text="Закрыть", callback_data="companion_close")]
     ])

@@ -61,15 +61,16 @@ def format_profile_text(match):
     """Форматирует текст профиля для отображения"""
     text = (
         f"👤 {match.get('first_name', 'Пользователь')}\n"
-        f"🎂 Возраст: {age_groups.get(match.get('age'), 'Не указан')}\n"
         f"👫 Пол: {'Мужской' if match.get('gender') == 1 else 'Женский'}\n"
+        f"🎂 Возраст: {age_groups.get(match.get('age'), 'Не указан')}\n"
+        f"🎯 Ищу возраст: {age_groups.get(match.get('interested_age'), 'Не указан')}\n"
     )
 
     if match.get('city'):
         text += f"🏙️ Город: {match['city']}\n"
 
-    if match.get('about_me'):
-        text += f"\n📖 О себе:\n{match['about_me']}\n"
+    if match.get('about'):
+        text += f"\n📖 О себе:\n{match['about']}\n"
 
     # Темы
     match_topics = match.get('topics', [])
@@ -81,9 +82,9 @@ def format_profile_text(match):
                 text += f" и ещё {len(topics_names) - 8}..."
 
     # Контактная информация
-    username = match.get('username')
-    if username:
-        text += f"\n👤 @{username}"
+    # username = match.get('username')
+    # if username:
+    #     text += f"\n👤 @{username}"
 
     return text
 
