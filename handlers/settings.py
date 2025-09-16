@@ -77,8 +77,8 @@ async def process_about_me(message: Message, state: FSMContext):
 async def about_me_cancel(callback: CallbackQuery, state: FSMContext):
     """Отмена ввода о себе"""
     await callback.message.edit_text(
-        "Главное меню:",
-        reply_markup=get_main_menu_keyboard()
+        "_____⚙️ Настройки_____",
+        reply_markup=get_settings_keyboard(),
     )
     await state.clear()
 
@@ -151,7 +151,7 @@ async def settings_import_first_name(callback: CallbackQuery):
 @router.callback_query(F.data == "contact_import_cancel")
 async def contact_import_cancel(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        "⚙️ Настройки:",
+        "_____⚙️ Настройки_____",
         reply_markup=get_settings_keyboard()
     )
     await state.clear()
@@ -159,7 +159,7 @@ async def contact_import_cancel(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "first_name_import_cancel")
 async def first_name_import_cancel(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        "⚙️ Настройки:",
+        "_____⚙️ Настройки_____",
         reply_markup=get_settings_keyboard()
     )
     await state.clear()
@@ -227,7 +227,7 @@ async def settings_city_only(callback: CallbackQuery, state: FSMContext):
 async def process_city_only(callback: CallbackQuery, state: FSMContext):
     if callback.data == "boolean_cancel":
         await callback.message.edit_text(
-            "⚙️ Настройки:",
+            "_____⚙️ Настройки_____",
             reply_markup=get_settings_keyboard()
         )
         await state.clear()
@@ -241,7 +241,7 @@ async def process_city_only(callback: CallbackQuery, state: FSMContext):
     status = "включен" if is_city_only else "выключен"
     await callback.message.edit_text(f"✅ Поиск только в городе {status}")
     await callback.message.answer(
-        "⚙️ Настройки:",
+        "_____⚙️ Настройки_____",
         reply_markup=get_settings_keyboard()
     )
     await state.clear()
@@ -260,7 +260,7 @@ async def settings_photo_required(callback: CallbackQuery, state: FSMContext):
 async def process_photo_required(callback: CallbackQuery, state: FSMContext):
     if callback.data == "boolean_cancel":
         await callback.message.edit_text(
-            "⚙️ Настройки:",
+            "_____⚙️ Настройки_____",
             reply_markup=get_settings_keyboard()
         )
         await state.clear()
@@ -274,7 +274,7 @@ async def process_photo_required(callback: CallbackQuery, state: FSMContext):
     status = "включен" if photo_required else "выключен"
     await callback.message.edit_text(f"✅ Показ только с фото {status}")
     await callback.message.answer(
-        "⚙️ Настройки:",
+        "_____⚙️ Настройки_____",
         reply_markup=get_settings_keyboard()
     )
     await state.clear()
@@ -293,7 +293,7 @@ async def settings_hide(callback: CallbackQuery, state: FSMContext):
 async def process_hide(callback: CallbackQuery, state: FSMContext):
     if callback.data == "boolean_cancel":
         await callback.message.edit_text(
-            "⚙️ Настройки:",
+            "_____⚙️ Настройки_____",
             reply_markup=get_settings_keyboard()
         )
         await state.clear()
@@ -307,7 +307,7 @@ async def process_hide(callback: CallbackQuery, state: FSMContext):
     status = "скрыт" if not is_seekable else "виден"
     await callback.message.edit_text(f"✅ Профиль {status} в поиске")
     await callback.message.answer(
-        "⚙️ Настройки:",
+        "_____⚙️ Настройки_____",
         reply_markup=get_settings_keyboard()
     )
     await state.clear()

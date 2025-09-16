@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from database import db
-from keyboards.main import get_main_menu_keyboard, get_photo_keyboard
+from keyboards.main import get_main_menu_keyboard, get_photo_keyboard, get_settings_keyboard
 
 router = Router()
 
@@ -55,16 +55,15 @@ async def process_photo(message: Message, state: FSMContext):
 @router.callback_query(PhotoState.waiting_for_photo, F.data == "photo_cancel")
 async def photo_cancel(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        "Главное меню:",
-        reply_markup=get_main_menu_keyboard()
+        "_____⚙️ Настройки_____",
+        reply_markup=get_settings_keyboard()
     )
     await state.clear()
 
 @router.callback_query(F.data == "photo_close")
-async def photo_cancel(callback: CallbackQuery, state: FSMContext):
+async def photo_close(callback: CallbackQuery, state: FSMContext):
     try:
         await state.clear()
         await callback.message.delete()
     except Exception as e:
         print(e)
-
