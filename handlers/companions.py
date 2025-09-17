@@ -68,7 +68,7 @@ async def menu_companions(callback: CallbackQuery):
 
     # Получаем слоты пользователя
     slots = await db.get_connections_by_slots(user_id)
-
+    print(slots)
     # Формируем текст
     total_slots = len(slots)
     occupied_slots = sum(1 for slot in slots if not slot['is_empty'])
@@ -101,8 +101,9 @@ async def show_companion_profile(callback: CallbackQuery, companion):
         f"📝 Имя: {companion['first_name']}\n"
         f"🎂 Возраст: {age_groups.get(companion['age'], 'Не указан')}\n"
         f"👫 Пол: {'Мужской' if companion['gender'] == 1 else 'Женский'}\n"
-        f"🏙️ Город: {companion.get('city', 'Не указан')}\n"
+        f"🏙️ Город: {companion.get('city') or 'Не указан'}\n"
         f"📚 Темы: {topics_text}\n"
+        f"🪢 Взаимность: {companion.get('is_mutual')}"
     )
 
     if companion.get('about'):
@@ -282,14 +283,24 @@ async def handle_companion_slot(callback: CallbackQuery):
     companion_id = int(callback.data.replace('companion_slot_', ''))
 
     # Получаем информацию о собеседнике
+    # """
+    #     SELECT
+    #         s.*, p.*,
+    #         t.topics_mask
+    #     FROM seekers s
+    #         LEFT JOIN preferences p ON s.telegram_id = p.seeker_id
+    #         LEFT JOIN topics t ON s.telegram_id = t.seeker_id
+    #     WHERE s.telegram_id = $1
+    # """
     companion = await db.get_companion_info(companion_id)
     if not companion:
         await callback.answer("❌ Собеседник не найден")
         return
 
     # Определяем тип связи
-    user_connections = await db.get_connections(callback.from_user.id)
-
+    # user_connections = await db.get_connections(callback.from_user.id)
+    is_mutual = await db.is_mutual_connection(callback.from_user.id, companion.get('telegram_id'))
+    companion['is_mutual'] = is_mutual
     # Показываем профиль с управлением
     await show_companion_profile(callback, companion)
 

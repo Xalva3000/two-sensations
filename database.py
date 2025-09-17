@@ -948,9 +948,10 @@ class Database:
         """Получает связи пользователя"""
         async with self.pool.acquire() as connection:
             query = '''
-                SELECT c.*, s.first_name, s.username 
+                SELECT 
+                    c.*, s.first_name, s.username 
                 FROM connections c
-                JOIN seekers s ON c.companion_id = s.telegram_id
+                    JOIN seekers s ON c.companion_id = s.telegram_id
                 WHERE c.seeker_id = $1
             '''
             params = [seeker_id]
@@ -969,7 +970,7 @@ class Database:
 
             return await connection.fetch(query, *params)
 
-    async def is_mutual_connection(self, user1_id, user2_id):
+    async def is_mutual_connection(self, seeker_id, companion_id):
         """Проверяет взаимность связи"""
         async with self.pool.acquire() as connection:
             return await connection.fetchval('''
@@ -977,7 +978,8 @@ class Database:
                 FROM connections 
                 WHERE 
                     seeker_id = $1
-            ''', user1_id)
+                    AND companion_id = $2
+            ''', seeker_id, companion_id)
 
     async def get_companions(self, telegram_id):
         """Получает всех собеседников пользователя"""
@@ -1048,9 +1050,10 @@ class Database:
 
             # Получаем все связи
             connections = await connection.fetch('''
-                SELECT c.*, s.first_name, s.username 
+                SELECT 
+                    c.*, s.first_name, s.username 
                 FROM connections c
-                JOIN seekers s ON c.companion_id = s.telegram_id
+                    JOIN seekers s ON c.companion_id = s.telegram_id
                 WHERE c.seeker_id = $1
                 ORDER BY c.slot_number
             ''', seeker_id)

@@ -190,7 +190,7 @@ def get_companions_slots_keyboard(slots):
             callback_data = f"empty_slot_{slot['slot_number']}"
         else:
             conn = slot['connection']
-            button_text = f"👤 Слот {slot['slot_number']}: {conn['first_name']}"
+            button_text = f"👤 Слот {slot['slot_number']}: {conn['first_name']} {'🪢' if conn['status'] == 1 else ''}"
             callback_data = f"companion_slot_{conn['companion_id']}"
 
         inline_keyboard.append([InlineKeyboardButton(text=button_text, callback_data=callback_data)])
