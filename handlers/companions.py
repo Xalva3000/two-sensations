@@ -96,6 +96,12 @@ async def show_companion_profile(callback: CallbackQuery, companion):
     topics_text = ", ".join([TOPICS_LIST[i - 1] for i in companion.get('topics', [])]) if companion.get(
         'topics') else "Не указаны"
 
+    # mutuality = {
+    #     0: "Запрошена",
+    #     1: "Да",
+    #     2: "Нет",
+    # }
+
     profile_text = (
         f"👤 Профиль собеседника:\n\n"
         f"📝 Имя: {companion['first_name']}\n"
@@ -103,7 +109,7 @@ async def show_companion_profile(callback: CallbackQuery, companion):
         f"👫 Пол: {'Мужской' if companion['gender'] == 1 else 'Женский'}\n"
         f"🏙️ Город: {companion.get('city') or 'Не указан'}\n"
         f"📚 Темы: {topics_text}\n"
-        f"🪢 Взаимность: {companion.get('is_mutual')}"
+        f"🪢 Взаимность: {'ДА' if companion.get('is_mutual') else 'НЕТ'}"
     )
 
     if companion.get('about'):
